@@ -12,8 +12,7 @@ from insalubrite.config_insal import path_sarah, path_sql_sarah
 
 def read_table(name):
     tab = pd.read_csv(os.path.join(path_sarah, name + '.csv'),
-                      sep = '\t', na_values='\\N',
-                      parse_dates=True)
+                      sep = '\t', na_values='\\N')
     for col in tab.columns:
         print(col)
         if all(tab[col].isin(['f','t'])):
@@ -22,8 +21,8 @@ def read_table(name):
         if tab[col].dtype == 'O' and tab[col].str[4].isnull().sum() == 0:
             if all(tab[col].str[4] == '-'):
                 if any(~tab[col].str[:2].isin(['19','20'])):
-                    assert all(tab[col].str[:2].isin(['19','20','00']))
-                    tab.loc[tab[col].str[:2] == '00', col] = \
+                    assert all(tab[col].str[:2].isin(['19','20','00', '10']))
+                    tab.loc[tab[col].str[:2].isin(['00','10']), col] = \
                         '20' + tab.loc[tab[col].str[:2] == '00', col].str[2:]
                 tab[col].str[:2]
                 tab[col] = pd.to_datetime(tab[col])
