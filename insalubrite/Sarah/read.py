@@ -15,14 +15,16 @@ def read_table(name):
                       sep = '\t', na_values='\\N',
                       parse_dates=True)
     for col in tab.columns:
+        print(col)
         if all(tab[col].isin(['f','t'])):
             tab[col] = tab[col] == 't'
         # travaille sur les dates"
         if tab[col].dtype == 'O' and tab[col].str[4].isnull().sum() == 0:
             if all(tab[col].str[4] == '-'):
-                if any(tab[col].str[:2] != '20'):
-                    assert all(tab[col].str[:2].isin(['20','00']))
-                    tab[col] = '20' + tab[col].str[2:]
+                if any(~tab[col].str[:2].isin(['19','20'])):
+                    assert all(tab[col].str[:2].isin(['19','20','00']))
+                    tab.loc[tab[col].str[:2] == '00', col] = \
+                        '20' + tab.loc[tab[col].str[:2] == '00', col].str[2:]
                 tab[col].str[:2]
                 tab[col] = pd.to_datetime(tab[col])
 
