@@ -30,7 +30,7 @@ def read_sql():
     ''' return a dict'''
     primary_key = dict()
     foreign_key = list()
-    
+
     with open(path_sql_sarah) as sql:
         for line in sql.readlines():
             if line.startswith('--'):
@@ -44,9 +44,9 @@ def read_sql():
                 primary_key[name_table] = key
 
             # alter
-        #        alter table ADRBAD 
-        #        add constraint FK72CF84F676DF198E 
-        #        foreign key (PARCELLE_ID) 
+        #        alter table ADRBAD
+        #        add constraint FK72CF84F676DF198E
+        #        foreign key (PARCELLE_ID)
         #        references PARCELLE_CADASTRALE;
             if 'alter table' in line:
                 name_table_alter = line.strip().split(' ')[2]
@@ -55,12 +55,10 @@ def read_sql():
             if 'references' in line:
                 reference_alter = line.strip().split(' ')[1][:-1]
                 foreign_key += [(name_table_alter,key_alter, reference_alter)]
-                print(name_table_alter,key_alter, reference_alter)
+
+    return primary_key, foreign_key
 
 
-    return primary_key, foreign_key   
-    
-    
 
 if __name__ == '__main__':
     bbb = read_sql()
