@@ -7,10 +7,11 @@ Created on Fri Jan  6 14:49:42 2017
 import os
 import pandas as pd
 
-path = '/home/sgmap/data/SARAH/csv'
+from insalubrite.config_insal import path_sarah
+
 
 def read_table(name):
-    tab = pd.read_csv(os.path.join(path, name + '.csv'),
+    tab = pd.read_csv(os.path.join(path_sarah, name + '.csv'),
                       sep = '\t', na_values='\\N',
                       parse_dates=True,
                       date_parser=pd.to_datetime)
@@ -24,6 +25,10 @@ def read_table(name):
 
     return tab
 
+
+def read_sql():
+    ''' return a dict'''
+    
 
 if __name__ == '__main__':
     tab = read_table('affaire')
