@@ -14,7 +14,6 @@ def read_table(name):
     tab = pd.read_csv(os.path.join(path_sarah, name + '.csv'),
                       sep = '\t', na_values='\\N')
     for col in tab.columns:
-        print(col)
         if all(tab[col].isin(['f','t'])):
             tab[col] = tab[col] == 't'
         # travaille sur les dates"
@@ -45,6 +44,7 @@ def read_sql():
                 key = line.strip().split(' ')[2][1:-1].lower()
                 if key[-1] == ')':
                     key = key[:-1]
+            if ');' in line:
                 primary_key[name_table] = key
 
             # alter
