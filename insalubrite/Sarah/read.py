@@ -13,14 +13,17 @@ from insalubrite.config_insal import path_sarah, path_sql_sarah
 def read_table(name):
     tab = pd.read_csv(os.path.join(path_sarah, name + '.csv'),
                       sep = '\t', na_values='\\N',
-                      parse_dates=True,
-                      date_parser=pd.to_datetime)
+                      parse_dates=True)
     for col in tab.columns:
         if all(tab[col].isin(['f','t'])):
             tab[col] = tab[col] == 't'
         # travaille sur les dates"
-        if tab[col].dtype == 'O':
+        if tab[col].dtype == 'O' and tab[col].str[4].isnull().sum() == 0:
             if all(tab[col].str[4] == '-'):
+                if any(tab[col].str[:2] != '20'):
+                    assert all(tab[col].str[:2].isin(['20','00']))
+                    tab[col] = '20' + tab[col].str[2:]
+                tab[col].str[:2]
                 tab[col] = pd.to_datetime(tab[col])
 
     return tab
@@ -36,9 +39,9 @@ def read_sql():
             if line.startswith('--'):
                 continue
             if 'create table' in line:
-                name_table = line.strip().split(' ')[2]
+                name_table = line.strip().split(' ')[2].lower()
             if 'primary key' in line:
-                key = line.strip().split(' ')[2][1:-1]
+                key = line.strip().split(' ')[2][1:-1].lower()
                 if key[-1] == ')':
                     key = key[:-1]
                 primary_key[name_table] = key
@@ -49,11 +52,11 @@ def read_sql():
         #        foreign key (PARCELLE_ID)
         #        references PARCELLE_CADASTRALE;
             if 'alter table' in line:
-                name_table_alter = line.strip().split(' ')[2]
+                name_table_alter = line.strip().split(' ')[2].lower()
             if 'foreign key' in line:
-                key_alter = line.strip().split(' ')[2][1:-1]
+                key_alter = line.strip().split(' ')[2][1:-1].lower()
             if 'references' in line:
-                reference_alter = line.strip().split(' ')[1][:-1]
+                reference_alter = line.strip().split(' ')[1][:-1].lower()
                 foreign_key += [(name_table_alter,key_alter, reference_alter)]
 
     return primary_key, foreign_key
