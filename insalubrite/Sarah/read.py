@@ -33,7 +33,16 @@ def test_read_tables(nrows=None):
     tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))    
     for table in tables_on_disk:
         read_table(table, nrows=nrows)
-   
+
+
+def get_columns_by_tables():
+    columns_by_tables = dict()
+    tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))    
+    for table in tables_on_disk:
+        cols = read_table(table, nrows=0).columns
+        columns_by_tables[table] = cols.tolist()
+    return columns_by_tables
+
 
 def read_sql():
     ''' return a dict'''
