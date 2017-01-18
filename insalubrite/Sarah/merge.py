@@ -35,15 +35,18 @@ tables_on_disk - set(primary_key.keys())
 
 tables_good = set(primary_key.keys()) & tables_on_disk
 
-def lists_table_from_links(list_of_links):
+def lists_table_from_links(list_of_links, set_format=False):
     # les tables que l'on doit augmenter
-    tables_to_merge = set(x[0] for x in list_of_links)
+    tables_to_merge = [x[0] for x in list_of_links]
     # les tables qui augmentent
-    tables_to_merge_with = set(x[2] for x in list_of_links)
+    tables_to_merge_with = [x[2] for x in list_of_links]
+    if set_format:
+        return set(tables_to_merge), set(tables_to_merge_with)
     return tables_to_merge, tables_to_merge_with
 
 
-tables_to_merge, tables_to_merge_with = lists_table_from_links(foreign_key)
+tables_to_merge, tables_to_merge_with = lists_table_from_links(foreign_key, 
+                                                               set_format=True)
 # tables_to_merge - tables_on_disk
 # => {'datadocument', 'datadocumenttemp'} logique
 # tables_to_merge_with - tables_on_disk
@@ -57,7 +60,6 @@ print('on a au depart', len(tables_good), 'tables')
 #    print('\n', table)
 #    print(isolee)
 
-
 ########################
 #  Ordre des fusions
 ########################
@@ -69,6 +71,9 @@ print('on a aussi ', len(tables_isolees), 'tables qui ne sont reliées à aucune
 # On regarde les tables qui sont des "merge_with" mais pas des "to_merge"
 # on supprime le lien à chaque fois ce qui permet de réitérer le processus
 
+# on copie la liste de liens
+links = [x for x in foreign_key if x[0] in tables_good and x[2] in tables_good]
+to_merge, merge_with = lists_table_from_links(links)
 
 
 
