@@ -29,6 +29,12 @@ def read_table(name):
     return tab
 
 
+def test_read_tables():
+    tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))    
+    for table in tables_on_disk:
+        read_table(table)
+   
+
 def read_sql():
     ''' return a dict'''
     primary_key = dict()
@@ -40,6 +46,7 @@ def read_sql():
                 continue
             if 'create table' in line:
                 name_table = line.strip().split(' ')[2].lower()
+                key = 'None'
             if 'primary key' in line:
                 key = line.strip().split(' ')[2][1:-1].lower()
                 if key[-1] == ')':
@@ -63,6 +70,8 @@ def read_sql():
     return primary_key, foreign_key
 
 
+def test_concordance_sql_and_csv():
+    pass
 
 if __name__ == '__main__':
     bbb = read_sql()
