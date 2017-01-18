@@ -10,9 +10,9 @@ import pandas as pd
 from insalubrite.config_insal import path_sarah, path_sql_sarah
 
 
-def read_table(name):
+def read_table(name, nrows=None):
     tab = pd.read_csv(os.path.join(path_sarah, name + '.csv'),
-                      sep = '\t', na_values='\\N')
+                      sep = '\t', na_values='\\N', nrows=nrows)
     for col in tab.columns:
         if all(tab[col].isin(['f','t'])):
             tab[col] = tab[col] == 't'
@@ -29,10 +29,10 @@ def read_table(name):
     return tab
 
 
-def test_read_tables():
+def test_read_tables(nrows=None):
     tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))    
     for table in tables_on_disk:
-        read_table(table)
+        read_table(table, nrows=nrows)
    
 
 def read_sql():
