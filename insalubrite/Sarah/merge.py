@@ -10,6 +10,8 @@ Une étape compliquée consiste à définir un ordre des fusions.
 En effet, on veut aggréger d'abord les tables qui n'ont pas de 
 lien avec les autres. 
 
+TODO : REGARDER PAR AFFAIRE !!
+
 """
 
 import os
@@ -98,6 +100,39 @@ num_etape = 0
 links = [x for x in foreign_key if x[0] in tables_good and x[2] in tables_good]
 links = [x for x in links if x[0] != x[2]] # retire ARRETE_RAVALEMENT dans ARRETE_RAVALEMENT
 
+
+###### Tables Ponts ###########
+# on gère les "tables ponts" : celles qui n'ont que deux colonnes qui 
+# mettent en relation deux tables. Il vaut mieux les traiter tout de suite.
+
+# reperage des ces tables
+def columns_by_table():
+    columns = dict()
+    tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))
+    for table in tables_on_disk:
+        tab = read_table(table, nrows=0)
+        columns[table] = tab.columns
+    return columns
+
+def tables_ponts(columns):
+    deux_colonnes = dict(
+        val for val in columns.items()
+        if len(val[1]) == 2)
+
+# liste des tables
+
+def common_table(tab1_name, tab2_name):
+    ''' regarde si deux tables ne sont pas en fait deux sous ensembles
+        d'un même truc
+    '''
+    tab1 = read_table(tab1_name)
+    tab2 = read_table(tab2_name)
+
+
+arrete_ravalement_id
+facadesconcernees_id
+
+###### Autres tables  ###########
 tables_csv_good = tables_good.copy()
 list_of_merge = ['initialisation']
 while len(list_of_merge) > 0:
@@ -109,12 +144,14 @@ while len(list_of_merge) > 0:
     # on commence par les tables qui sont augmentées mais qui n'augmentent pas
     list_of_merge = set(merge_with) - set(to_merge)
     print("On a", len(list_of_merge), 'table qui ne seront plus augmentées. \n')
-    print("il s'agit de :", '\n - '.join(list_of_merge), '\n')
+    print("il s'agit de : \n", '\n - '.join(list_of_merge), '\n')
     fusion(list_of_merge, verbose=True)
     links = [x for x in links if x[2] not in list_of_merge]
     tables_csv_good -= list_of_merge
     
 
+
+# est-ce que affaire est une table centrale ? 
 
 
 
