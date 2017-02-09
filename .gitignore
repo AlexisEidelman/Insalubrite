@@ -139,4 +139,6 @@ $RECYCLE.BIN/
 *.lnk
 
 *.csv
+!/insalubrite/Sarah/links.csv
+!/insalubrite/Sarah/value_counts.csv
 insalubrite/config_insal.py
