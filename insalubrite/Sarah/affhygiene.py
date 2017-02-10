@@ -22,7 +22,7 @@ def tables_reliees_a(name_table):
     return [x for x in foreign_key if x[2] == name_table]
 
 def est_reliee_a(name_table):
-    return [x for x in foreign_key if x[1] == name_table]
+    return [x for x in foreign_key if x[0] == name_table]
 
 # on copie la liste de liens
 
