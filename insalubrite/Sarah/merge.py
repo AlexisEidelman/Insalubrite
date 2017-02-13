@@ -206,8 +206,8 @@ while len(list_of_merge) > 0:
 # est-ce que affaire est une table centrale ? 
 
 oriented_links = [x for x in foreign_key if x[0] in tables_good and x[2] in tables_good]
-oriented_links = [x for x in links if x[0] != x[2]] # retire ARRETE_RAVALEMENT dans ARRETE_RAVALEMENT
+oriented_links = [x for x in oriented_links if x[0] != x[2]] # retire ARRETE_RAVALEMENT dans ARRETE_RAVALEMENT
 import pandas as pd
 to_gephi = pd.DataFrame.from_records(oriented_links)
-to_gephi.columns = ['target', 'label', 'source']
+to_gephi.columns = ['target', 'lien', 'source']
 to_gephi.to_csv('links.csv', index=False)
