@@ -18,6 +18,8 @@ from insalubrite.Sarah.read import read_sql, read_table
 primary_key, foreign_key = read_sql()
 tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))
 
+verbose = True
+
 def tables_reliees_a(name_table):
     return [x for x in foreign_key if x[2] == name_table]
 
@@ -28,10 +30,23 @@ def est_reliee_a(name_table):
 
 hyg = read_table('affhygiene')
 cercle1 = tables_reliees_a('affhygiene')
-print(cercle1)
+
+## Contenu de la table affhygiene
+if verbose:
+    print('''La table affhygiene contient quatre variable:
+        \t partie commune qui est vraie dans 5% des cas
+        \t type bien concerne 
+        \t le lien vers affaire_id
+        \t le lien vers bien_id qui est l'id de ficherecolem qui pointe vers
+        tournee et facade
+        ''')
+
+# print(cercle1)
 
 
 tab = hyg.copy()
+
+
 #####################
 ### Premier tour ####
 
@@ -172,9 +187,6 @@ tout.head()
 # surtout prescription_histo pour voir
 # qui a eu un souci un jour et compléter par la prescription actuelle quand
 # quand c'est le premier avis
-
-
-
 
 
 #######################################
