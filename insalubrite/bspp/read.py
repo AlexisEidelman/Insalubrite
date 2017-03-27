@@ -93,13 +93,12 @@ tab[['voie', 'ville', 'code_postal']].iloc[:500].to_csv(path_csv_adresse_bspp,
 import requests
 
 data = {
-    'data': path_csv_adresse_bspp,
     'columns': 'voie',
     'postcode': 'code_postal'    
     }
 r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
-                  files = {'data': path_csv_adresse_bspp},
-                  data = data, timeout=600)
+                  files = {'data': open(path_csv_adresse_bspp)},
+                  json = data)
 print(r.status_code, r.reason)
 
 
