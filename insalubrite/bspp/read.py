@@ -118,8 +118,12 @@ tab_paris_adresse.set_index(tab_paris.index, inplace=True)
 
 tab_paris = tab_paris.join(tab_paris_adresse)
 
+def look_for_unmatched(tab):
+    tab[tab['result_score'] < 0.7 | tab['result_score'].isnull() ]
+
+
 path_csv_paris = os.path.join(path_bspp, 'paris_ban.csv')
-tab_paris.to_csv(path_csv_paris)
+tab_paris.to_csv(path_csv_paris, index=False, encoding='utf8')
 
     
 #http --timeout 600 -f POST http://api-adresse.data.gouv.fr/search/csv/ 
