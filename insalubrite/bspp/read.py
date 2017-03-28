@@ -23,6 +23,10 @@ tab = pd.read_csv(path_csv_bspp)
 
 ### Corrige le libellé
 
+#tab.groupby(['Abrege_Motif','Libelle_Motif']).size()
+# => on a plusieurs label pour un abrege_motif. C'est des coquilles que l'on
+# corrige.
+
 # on devrait corriger dans l'autre sens mais c'est plus simple de retirer
 # les accents pour avoir un libellé unique
 tab['Libelle_Motif'] = tab['Libelle_Motif'].str.replace('é','e')
@@ -63,6 +67,7 @@ pattern_code_postal = r'[0-9]{5}'
 # adresse.str.count(pattern_code_postal).value_counts()
 ## 0 => 1042; 3 => 27, 2 => 15, 5 => 3
 pb_0_code_postal = adresse[adresse.str.count(pattern_code_postal) == 0]
+#TODO: exploiter ces 1000 cas qui ont une ville la plupart du temps
 
 pd.options.display.max_colwidth = 150
 pb_trop_code_postal = adresse[adresse.str.count(pattern_code_postal) > 1]
@@ -82,26 +87,39 @@ tab.loc[tab['ville'].str.contains('ARRONDISS'), 'ville'] = 'PARIS'
 tab['ville'] = tab['ville'].str.strip()
 tab['ville'].value_counts()
 
-path_csv_adresse_bspp = os.path.join(path_bspp, 'adresses.csv')
-
-tab[['voie', 'ville', 'code_postal']].to_csv(path_csv_adresse_bspp,
-    index=False)
-    
-tab[['voie', 'ville', 'code_postal']].iloc[:500].to_csv(path_csv_adresse_bspp,
-    index=False, encoding='utf8')
 
 import requests
+from io import StringIO
 
-data = {
-    'columns': 'voie',
-    'postcode': 'code_postal'    
-    }
-r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
-                  files = {'data': open(path_csv_adresse_bspp)},
-                  json = data)
-print(r.status_code, r.reason)
+def use_api_adresse(tab):
+    '''retourne un DataFrame augmenté via 
+    https://adresse.data.gouv.fr/api-gestion'''
+    
+    path_csv_temp = os.path.join(path_bspp, 'temp.csv')
+    tab[['voie','ville', 'code_postal']].to_csv(
+        path_csv_temp, index=False, encoding='utf8'
+        ) 
+    
+    data = {
+        'postcode': 'code_postal'    
+        }
 
+    r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
+                      files = {'data': open(path_csv_temp)},
+                      json = data)
+    print(r.status_code, r.reason)
+    
+    return pd.read_csv(StringIO(r.content.decode('UTF-8')))
 
-BAN_URL = "http://api-adresse.data.gouv.fr/search"
-requests.get(BAN_URL + '?q=' + '12 rue poliveau')
+tab_paris = tab[tab['ville'] == 'PARIS']
+tab_paris_adresse = use_api_adresse(tab_paris)
+tab_paris_adresse = tab_paris_adresse[['result_label', 'result_score', 'result_id']]
+tab_paris_adresse.set_index(tab_paris.index, inplace=True)
+
+tab_paris = tab_paris.join(tab_paris_adresse)
+
+path_csv_paris = os.path.join(path_bspp, 'paris_ban.csv')
+tab_paris.to_csv(path_csv_paris)
+
+    
 #http --timeout 600 -f POST http://api-adresse.data.gouv.fr/search/csv/ 
