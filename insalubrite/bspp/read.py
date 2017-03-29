@@ -7,7 +7,7 @@ Charge la base des inspections de bâtiments de la BSPP
 Le programme charge la base puis :
     1 - travaille sur le libellé
     2 - travaille sur la date
-    3 - travaille sur l'adresse en utilisant l'api de geocodage 
+    3 - travaille sur l'adresse en utilisant l'api de geocodage
         https://adresse.data.gouv.fr/api-gestion/
 
 """
@@ -16,6 +16,7 @@ import os
 import pandas as pd
 
 from insalubrite.config_insal import path_bspp
+from insalubrite.match_to_ban import merge_df_to_ban
 
 path_csv_bspp = os.path.join(path_bspp, 'ETALAB.csv')
 tab = pd.read_csv(path_csv_bspp)
@@ -88,42 +89,14 @@ tab['ville'] = tab['ville'].str.strip()
 tab['ville'].value_counts()
 
 
-import requests
-from io import StringIO
-
-def use_api_adresse(tab):
-    '''retourne un DataFrame augmenté via 
-    https://adresse.data.gouv.fr/api-gestion'''
-    
-    path_csv_temp = os.path.join(path_bspp, 'temp.csv')
-    tab[['voie','ville', 'code_postal']].to_csv(
-        path_csv_temp, index=False, encoding='utf8'
-        ) 
-    
-    data = {
-        'postcode': 'code_postal'    
-        }
-
-    r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
-                      files = {'data': open(path_csv_temp)},
-                      json = data)
-    print(r.status_code, r.reason)
-    
-    return pd.read_csv(StringIO(r.content.decode('UTF-8')))
-
-tab_paris = tab[tab['ville'] == 'PARIS']
-tab_paris_adresse = use_api_adresse(tab_paris)
-tab_paris_adresse = tab_paris_adresse[['result_label', 'result_score', 'result_id']]
-tab_paris_adresse.set_index(tab_paris.index, inplace=True)
-
-tab_paris = tab_paris.join(tab_paris_adresse)
-
-def look_for_unmatched(tab):
-    tab[tab['result_score'] < 0.7 | tab['result_score'].isnull() ]
-
+# pour bspp
+tab_paris = merge_df_to_ban(
+    tab[tab['ville'] == 'PARIS'],
+    os.path.join(path_bspp, 'temp.csv'),
+    ['voie','ville', 'code_postal'],
+    name_postcode = 'code_postal',
+    encode_utf8 = True
+    )
 
 path_csv_paris = os.path.join(path_bspp, 'paris_ban.csv')
 tab_paris.to_csv(path_csv_paris, index=False, encoding='utf8')
-
-    
-#http --timeout 600 -f POST http://api-adresse.data.gouv.fr/search/csv/ 

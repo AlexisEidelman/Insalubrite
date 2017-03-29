@@ -5,11 +5,11 @@ Created on Fri Mar 24 12:15:44 2017
 """
 import os
 import pandas as pd
-import requests
-from io import StringIO
 
 from insalubrite.config_insal import path_output
 from insalubrite.Sarah.read import read_table
+
+from insalubrite.match_to_ban import merge_df_to_ban
 
 ### éude des adresses
 adresse = read_table('adresse')
@@ -85,7 +85,7 @@ len(result_adrsimple)  # => 239
 
 
 ### sauvegarde les données qui concernent les adressses seules :
-adresses_final = result_adrbad[['codeinsee', 'codepostal', 'nomcommune', 
+adresses_final = result_adrbad[['codeinsee', 'codepostal', 'nomcommune',
                'numero', 'suffixe1', 'nom_typo', 'affaire_id',
                'code_cadastre']]
 adresses_final['suffixe1'].fillna('', inplace=True)
@@ -93,34 +93,16 @@ adresses_final['suffixe1'].fillna('', inplace=True)
 adresses_final['libelle'] = adresses_final['numero'].astype(str) + ' ' + \
     adresses_final['suffixe1'] + ' ' + \
     adresses_final['nom_typo'] + ', Paris'
-adresses_final['libelle'] = adresses_final['libelle'].str.replace('  ', ' ')  
+adresses_final['libelle'] = adresses_final['libelle'].str.replace('  ', ' ')
 
 
-def use_api_adresse(tab):
-    '''retourne un DataFrame augmenté via 
-    https://adresse.data.gouv.fr/api-gestion'''
-    
-    path_csv_temp = os.path.join(path_output, 'temp.csv')
-    tab[['libelle', 'codepostal']].to_csv(
-        path_csv_temp, index=False
-        ) 
-    
-    data = {
-        'postcode': 'codepostal'    
-        }
-
-    r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
-                      files = {'data': open(path_csv_temp)},
-                      json = data)
-    print(r.status_code, r.reason)
-    
-    return pd.read_csv(StringIO(r.content.decode('UTF-8')))
-
-adresses_final_ban = use_api_adresse(adresses_final)
-adresses_final_ban = adresses_final_ban[['result_label', 'result_score', 'result_id']]
-adresses_final_ban.set_index(adresses_final.index, inplace=True)
-adresses_final = adresses_final.join(adresses_final_ban)
-
+#pour adresse sarah
+adresses_final = merge_df_to_ban(
+    adresses_final,
+    os.path.join(path_output, 'temp.csv'),
+    ['libelle', 'codepostal'],
+    name_postcode = 'codepostal'
+    )
 
 path_csv_adressses = os.path.join(path_output, 'adresses_ban.csv')
 adresses_final.to_csv(path_csv_adressses, index=False, encoding='utf8')
