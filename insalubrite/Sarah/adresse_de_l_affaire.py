@@ -86,7 +86,8 @@ len(result_adrsimple)  # => 239
 
 ### sauvegarde les données qui concernent les adressses seules :
 adresses_final = result_adrbad[['codeinsee', 'codepostal', 'nomcommune', 
-               'numero', 'suffixe1', 'nom_typo', 'affaire_id']]
+               'numero', 'suffixe1', 'nom_typo', 'affaire_id',
+               'code_cadastre']]
 adresses_final['suffixe1'].fillna('', inplace=True)
 
 adresses_final['libelle'] = adresses_final['numero'].astype(str) + ' ' + \

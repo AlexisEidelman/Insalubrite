@@ -28,19 +28,47 @@ from insalubrite.config_insal import path_bspp, path_output
 
 path_sarah = os.path.join(path_output, 'adresses_ban.csv')
 if not os.path.exists(path_sarah):
-    import sarah.adresses_de_l_affaire
+    import insalubrite.Sarah.adresse_de_l_affaire
 adresses_sarah = pd.read_csv(path_sarah)
+sarah = adresses_sarah
 
 
-### charge la base bspp ###
+###########################
+###         BSPP        ###
+###########################
+
 
 path_bspp = os.path.join(path_bspp, 'paris_ban.csv')
 if not os.path.exists(path_bspp):
-    import bspp.read
+    import insalubrite.bspp.read
 bspp = pd.read_csv(path_bspp)
 
-
 ### Fusion des données 
-test = adresses_sarah.merge(bspp, on='result_id', how='outer', indicator=True)
+test = sarah.merge(bspp, on='result_id', how='outer', indicator=True)
 test._merge.value_counts()
+
+
+
+###########################
+###      Parcelle       ###
+###########################
+
+from insalubrite.Apur.parcelles import read_parcelle
+parcelle = read_parcelle(2015)
+parcelle.rename(columns={'C_CAINSEE': 'codeinsee'}, inplace=True)
+
+#prépare adresse_sarah_pour le match
+code = sarah['code_cadastre']
+assert all(code.str[:5].astype(int) == sarah['codeinsee'])
+sarah['C_SEC'] = code.str[6:8]
+sarah['N_PC'] = code.str[8:].astype(int)
+
+sarah = sarah.merge(parcelle, on=['codeinsee', 'C_SEC', 'N_PC'],
+                   how='left', indicator=True)
+sarah._merge.value_counts()
+# => 134 non matché, est-ce une question de mise à jour ? test[test._merge == 'left_only']
+sarah.drop(['codeinsee', 'C_SEC', 'N_PC', 'code_cadastre', '_merge'],
+           axis=1, inplace=True)
+
+
 
