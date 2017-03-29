@@ -2,25 +2,17 @@
 """
 Created on Fri Mar 24 12:15:44 2017
 
-TODO: faire le lien entre adrbad, voie, parcelle
-TODO: faire la séléction des variable au fur et à mesure
-
 """
+
 import pandas as pd
 
 from insalubrite.Sarah.read import read_table
 
-
-### éude des adresses 
-
-
+### éude des adresses
 adresse = read_table('adresse')
 # est-ce que les adresses sont ou bien dans adrbad ou bien dans adrsimple ?
 # vu la tête de adresse on peut supposer que oui
 adrsimple = read_table('adrsimple')
-
-# lien vers la parcelle, la voie et l'adresse
-voie = read_table('voie')
 
 
 # Merge tables
@@ -43,8 +35,9 @@ len(result2.signalement_id) ## => 30692
 
 # Link with adresses
 adrbad = read_table('adrbad')
-#del adrbad['id_bad'] #id_bad est 
-adrbad = adrbad[['adresse_id','parcelle_id','voie_id']]
+adrbad = adrbad[['adresse_id','parcelle_id','voie_id',
+                 'numero', 'suffixe1', 'suffixe2', 'suffixe3']]
+
 result_adrbad = pd.merge(result2, adrbad, on='adresse_id')
 len(result2) # => 30692
 len(adrbad)  # => 146306
@@ -73,12 +66,12 @@ ilot = read_table('ilot')
 ilot['ilot_id'] = ilot['nsq_ia']
 del ilot['nsq_ia']
 result = pd.merge(result, ilot, on = 'nqu')
-result = pd.merge(result,parcelle_cadastrale, on = 'ilot_id')
+result = pd.merge(result, parcelle_cadastrale, on = 'ilot_id')
 
 
 result4 = pd.merge(voie, result_adrbad, on='voie_id')
 result5 = pd.merge(result, result4, on='parcelle_id')
-result_adrbad = result5 
+result_adrbad = result5
 
 # Les 239 qui ne sont pas matché avec adrbad sont marché avec adrsimple
 adrsimple = read_table('adrsimple')
@@ -88,14 +81,11 @@ len(adrsimple)  # => 95461
 len(result_adrsimple)  # => 239
 
 
-## 68 features: can we drop some of them?
-#result  = result[['affaire_id', 'bien_id','designation','libelle_adresse','ville_adresse',
-                 'observations','codepostal_adresse']]
-                 
-#path = '/home/kevin/Desktop/data_etalab/Insalubrite/adresse.csv'
-#result.to_csv(path)
+### sauvegarde les données qui concernent les adressses seules :
+result_adrbad[['codeinsee', 'codepostal', 'nomcommune', 
+               'numero', 'suffixe1', 'nom_typo']]
 
 #path_to_good_adress = '/home/kevin/Downloads/adresse.geocoded.csv'
 #result_bis = pd.read_csv(path_to_good_adress)
-#result_bis = result_bis[['affaire_id', 'bien_id', 'observations','designation','result_label']]                 
-#result_bis                
+#result_bis = result_bis[['affaire_id', 'bien_id', 'observations','designation','result_label']]
+#result_bis
