@@ -13,13 +13,16 @@ from insalubrite.match_to_ban import merge_df_to_ban
 
 path_eau_2014 = os.path.join(path_apur + '2014', '10 eau APUR 2014.xlsx')
 eau_2014 = pd.read_excel(path_eau_2014)
-eau_2014.rename(columns={'Libellé type de branchement': 
+eau_2014.rename(columns={'Libellé type de branchement':
     'Libellé qualité client payeur'}, inplace=True)
+eau_2014['eau_annee_source'] = 2014
 
 path_eau_2015 = os.path.join(path_apur + '2015', '10 Eau-de-Paris_APUR 2014.xlsx')
 eau_2015 = pd.read_excel(path_eau_2015)
+eau_2015['eau_annee_source'] = 2015
 
 eau = eau_2014.append(eau_2015)
+eau.reset_index(inplace=True)
 
 # on a que 38 adresses commune
 # eau[['Nom rue', 'N° dans la rue', 'Complément du N° dans la rue']].duplicated().sum()
@@ -28,7 +31,7 @@ eau['libelle'] = eau['N° dans la rue'].astype(str) + ' ' + \
     eau['Complément du N° dans la rue'].fillna('') + ' ' + \
     eau['Type de voie'] + ' ' + \
     eau['Nom rue'] + ', Paris'
-    
+
 eau['libelle'] = eau['libelle'].str.replace('  ', ' ')
 
 eau['codepostal'] = eau['Nom commune'].str.split('PARIS ').str[1]
@@ -43,3 +46,7 @@ eau_ban = merge_df_to_ban(
     name_postcode = 'codepostal'
     )
 
+#TODO: regarder les erreurs de match
+
+path_eau = os.path.join(path_output, 'eau.csv')
+eau_ban.to_csv(path_eau, index=False)
