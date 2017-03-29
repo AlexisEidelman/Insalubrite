@@ -11,11 +11,13 @@ from io import StringIO
 import pandas as pd
 
 
-def csv_to_ban(path_csv, name_postcode):
+def csv_to_ban(path_csv, name_postcode=''):
     ''' On part du principe qu'on a le code postal'''
-    data = {
-        'postcode': name_postcode   
-        }
+    data = {}
+    if name_postcode:
+        data = {
+            'postcode': name_postcode   
+            }
     r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
                       files = {'data': open(path_csv)},
                       json = data)
