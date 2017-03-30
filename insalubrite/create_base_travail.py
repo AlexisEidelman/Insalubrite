@@ -49,13 +49,28 @@ test._merge.value_counts()
 
 
 
-###########################
-###      Parcelle       ###
-###########################
+########################################
+###      Parcelle   et demandeurs    ###
+########################################
 
+# on rejoint les deux car parcelle et demandeurs sont au niveau parcelle
+# cadastrale
 from insalubrite.Apur.parcelles import read_parcelle
 parcelle = read_parcelle(2015)
 parcelle.rename(columns={'C_CAINSEE': 'codeinsee'}, inplace=True)
+
+path_dem = os.path.join(path_output, 'demandeurs.csv')
+demandeurs = pd.read_csv(path_dem)
+code = demandeurs['ASP']
+demandeurs['codeinsee'] = code.str[:3].astype(int) + 75100
+assert all(demandeurs['codeinsee'].isin(parcelle.codeinsee))
+demandeurs['C_SEC'] = code.str[4:6]
+demandeurs['N_PC'] = code.str[7:].astype(int)
+
+parcelle = parcelle.merge(demandeurs,
+                          on=['codeinsee', 'C_SEC', 'N_PC'],
+                          how='outer', indicator=True)
+# right_only      350
 
 #prépare adresse_sarah_pour le match
 code = sarah['code_cadastre']
@@ -69,7 +84,6 @@ sarah._merge.value_counts()
 # => 134 non matché, est-ce une question de mise à jour ? test[test._merge == 'left_only']
 sarah.drop(['codeinsee', 'C_SEC', 'N_PC', 'code_cadastre', '_merge'],
            axis=1, inplace=True)
-
 
 ###########################
 ###      eau      ###
@@ -102,3 +116,5 @@ sarah['sat_annee_source'].value_counts(dropna=False)
 # on rate des adresses de sat  #TODO: étudier
 # TODO: récupérer la date
 # TODO: récupérer la date pour vérifier qu'on est avant la visite
+
+
