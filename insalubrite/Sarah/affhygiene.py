@@ -31,11 +31,15 @@ def est_reliee_a(name_table):
 hyg = read_table('affhygiene')
 cercle1 = tables_reliees_a('affhygiene')
 
+# La visite est sur l'affaire.
+# sur les parties communes ou non
+
+
 ## Contenu de la table affhygiene
 if verbose:
     print('''La table affhygiene contient quatre variable:
         \t partie commune qui est vraie dans 5% des cas
-        \t type bien concerne 
+        \t type bien concerne
         \t le lien vers affaire_id
         \t le lien vers bien_id qui est l'id de ficherecolem qui pointe vers
         tournee et facade
@@ -77,6 +81,16 @@ for name in suspectes:
     tables_suspectes[name] = read_table(name)
     affaires_id[name] = tables_suspectes[name]['affaire_id']
 
+# arretehyautre => code santé publique affaire grave risque pour les occupants
+# arrété insalubrité
+# si c'est délai de l'arrêté le temps v aqualifier la gravité.
+# est relié à pvcsp
+
+# mainlevee
+# risque est traité. On a laissé le temps pour faire les travaux, plus de risques
+# recouvrement
+
+
 assert all(affaires_id['mainlevee'].isin(affaires_id['arretehyautre']))
 tables_suspectes['mainlevee']
 test = tables_suspectes['arretehyautre'].merge(
@@ -109,6 +123,29 @@ Il y a des éléments sur le plomb et le saturnisme à mieux comprendre
 
 Une interrogation sur le fait que des affaires n'ont pas de cr
 et que d'autres en ont plusieurs
+
+diag_plomb : il y a potentiellement du plomb
+date_diag_plomb à quelle date tu écris à la Dril pour faire le diagnostic.
+#TODO: normalement c'est quelque jours après.
+# à la section saturnisme
+# TODO: jamais rempli
+Les dates ne sont pas importante.
+
+si dangerosité du bâtiment on signale à la préfecture : problème architecture
+en général quand il y a un risque, j'envoie un architecte.
+C'est un indice. C'est prescrit.
+Pour le plomb c'est un signal fort.
+Pour la police c'est pas garanti mais ça vaut le coup.
+
+signalement_demande_logement : bonne volonté au départ mais pas de lien
+
+descriptionstructureepossible
+
+cr definitif: c'est une étape de validation. Parfois forcé.
+cr.numero_affaire lien avec un affaire précédente très mal rempli
+
+
+# idée supérficie sur nombre de personne sur les logement ssuelmeent
 
 '''
 
@@ -168,10 +205,21 @@ for element in cercle_cr:
 ## mise_en_demeure est un peu particulier
 ## infractionhisto et prescriptionhisto de l'autre
 
+# mise en demeure, permet faire les travaux d'office.
+# ce qui
 
 ###################################
 ####### Prescription ##############
 ###################################
+#
+#Dans le process, il y a d'abord un CR de visite et on
+#constate l'infranction, on fait des prescriptions en fonction
+#et ensuite on utilise un moyen qui est l'arrêté ou mise en demeure
+#règlement sanitaire.
+
+# on a une procédeure avec un délai, On fait un constat au bout de 3 mois
+# rien n'est fait. Exécuté ou non exécuté.
+# Si c'est effectué : on classe.
 
 # Prescription : lien en la table et la tablehisto
 presc = read_table('prescription')
@@ -197,4 +245,7 @@ inf = read_table('infraction')
 histo = read_table('prescriptionhisto')
 tout = presc.merge(histo, left_on = 'id', right_on = 'prescription_id',
                    how='outer')
+# aticles correspond aux textes décrivant l'inspection
+# c'est fourni par un champs de séléction
+#CSP : code santé publique
 tout.head()
