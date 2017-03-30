@@ -83,3 +83,22 @@ sarah = sarah.merge(eau[['result_id', 'eau_annee_source']],
                    how='left')
 sarah['eau_annee_source'].value_counts(dropna=False)
 # on rate des adresses de eau  #TODO: étudier
+# TODO: récupérer la date pour vérifier qu'on est avant la visite
+
+###########################
+###      saturnisme     ###
+###########################
+
+# question métier : si le saturnisme est décelé après une première
+# viste d'insalubrité, alors le serpent se mord la queue :
+# on utilise le résultat pour prédire le résultat
+path_sat = os.path.join(path_output, 'sat.csv')
+if not os.path.exists(path_sat):
+    import insalubrite.Apur.saturnisme
+sat = pd.read_csv(path_sat)
+sarah = sarah.merge(sat[['result_id', 'sat_annee_source']],
+                   how='left')
+sarah['sat_annee_source'].value_counts(dropna=False)
+# on rate des adresses de sat  #TODO: étudier
+# TODO: récupérer la date
+# TODO: récupérer la date pour vérifier qu'on est avant la visite
