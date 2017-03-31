@@ -16,8 +16,12 @@ affaire) et en colonnes:
 """
 
 import pandas as pd
+import os
 
 from insalubrite.Sarah.read import read_table
+from insalubrite.config_insal import path_output
+path_result_adrbad = os.path.join(path_output, 'result_adrbad.csv')
+path_result_adrsimple = os.path.join(path_output, 'result_adrsimple.csv')
 
 #Merge affhygiene and cr_visite into result1
 affhygiene = read_table('affhygiene')
@@ -125,6 +129,7 @@ result = pd.merge(result, parcelle_cadastrale, on = 'ilot_id')
 result4 = pd.merge(voie, result_adrbad, on='voie_id')
 result5 = pd.merge(result, result4, on='parcelle_id')
 result_adrbad = result5
+result_adrbad.to_csv(path_result_adrbad)
 
 # Les 239 qui ne sont pas matché avec adrbad sont marché avec adrsimple
 adrsimple = read_table('adrsimple')
@@ -132,6 +137,6 @@ result_adrsimple = pd.merge(result2, adrsimple, on='adresse_id')
 len(result2) # => 30692
 len(adrsimple)  # => 95461
 len(result_adrsimple)  # => 239
-
+result_adrsimple.to_csv(path_result_adrsimple)
 
 
