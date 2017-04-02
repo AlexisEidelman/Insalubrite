@@ -3,11 +3,11 @@
 """
 Crée la table avec chaque ligne égale à une visite (suite à l'ouverture d'une
 affaire) et en colonnes:
-    +résultat visite (infos sur l'infraction commise par exemple l'article 
-      enfreint et infos sur la prescription à suivre), 
-    +adresse de la visite, 
-    +signalement 
-    +puis éventuellement informations venant d'autres sources: BSPP, APUR, 
+    +résultat visite (infos sur l'infraction commise par exemple l'article
+      enfreint et infos sur la prescription à suivre),
+    +adresse de la visite,
+    +signalement
+    +puis éventuellement informations venant d'autres sources: BSPP, APUR,
       EAU de PARIS
 
 #TODO: Rajouter BSPP
@@ -20,13 +20,17 @@ import os
 
 from insalubrite.Sarah.read import read_table
 from insalubrite.config_insal import path_output
+
 path_result_adrbad = os.path.join(path_output, 'result_adrbad.csv')
 path_result_adrsimple = os.path.join(path_output, 'result_adrsimple.csv')
+# le nom result_adrbad n'est pas très explicite final ?
+# TODO: essayer de faire une seule table finale où le fait de passer
+# par adrbad ou adrsimple n'apparait pas
 
 #Merge affhygiene and cr_visite into result1
 affhygiene = read_table('affhygiene')
 cr_visite = read_table('cr_visite')
-del affhygiene['parties_cummunes'] 
+del affhygiene['parties_cummunes']
 del affhygiene['type_bien_concerne']
 cr_visite  = cr_visite[['affaire_id', 'observations_visibles']]
 ##Une affaire donne lieu à une visite
@@ -71,7 +75,7 @@ affhygiene = tout
 affhygiene['affaire_id'] = affhygiene['affaire_id_x']
 del affhygiene['affaire_id_x']
 
-#Lien avec les adresses 
+#Lien avec les adresses
 lien_signalement_affaire = read_table('signalement_affaire')
 result1 = pd.merge(affhygiene, lien_signalement_affaire, on='affaire_id')
 len(affhygiene.affaire_id) # => 37322
