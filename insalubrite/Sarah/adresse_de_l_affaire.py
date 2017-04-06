@@ -11,15 +11,6 @@ from insalubrite.Sarah.read import read_table
 
 from insalubrite.match_to_ban import merge_df_to_ban
 
-### éude des adresses
-adresse = read_table('adresse')
-# est-ce que les adresses sont ou bien dans adrbad ou bien dans adrsimple ?
-# vu la tête de adresse on peut supposer que oui
-adrsimple = read_table('adrsimple')
-
-
-# Merge tables
-affhygiene = read_table('affhygiene')
 
 def adresse_par_affaires(table):
     ''' retrounes la table avec l'adresse correspondant à chaque affaire
@@ -114,5 +105,17 @@ def adresse_par_affaires(table):
     return adresses_final
 
 
-path_csv_adressses = os.path.join(path_output, 'adresses_ban.csv')
-adresses_final.to_csv(path_csv_adressses, index=False, encoding='utf8')
+if __name__ == '__main__':
+    ### éude des adresses
+    adresse = read_table('adresse')
+    # est-ce que les adresses sont ou bien dans adrbad ou bien dans adrsimple ?
+    # vu la tête de adresse on peut supposer que oui
+    adrsimple = read_table('adrsimple')
+    
+    
+    # Merge tables
+    affhygiene = read_table('affhygiene')
+        
+    adresses_final = adresse_par_affaires(affhygiene)
+    path_csv_adressses = os.path.join(path_output, 'adresses_ban.csv')
+    adresses_final.to_csv(path_csv_adressses, index=False, encoding='utf8')

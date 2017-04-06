@@ -129,19 +129,27 @@ infractionhisto = infractionhisto_avant_merge.merge(infractiontype,
 
 # hypothèse, les bâtiments insalubre sont ceux pour lesquels on a
 # une infraction autre que 30 - Libre
-insalubre = infractionhisto[infractionhisto.infractiontype != 30]
+insalubre = infractionhisto[infractionhisto.infractiontype_id != 30]
 
+#Plusieurs infractions par visite
+insalubre.groupby(['compterenduvisite_id']).size()
+insalubre.groupby(['compterenduvisite_id','infraction_id']).size()
+#Choix: on choisit de garder une seule infraction par visite: la première
+insalubre_first_infraction = insalubre.groupby(['compterenduvisite_id']).first()
+insalubre_first_infraction.reset_index(inplace = True)
+insalubre_first_infraction.groupby(['compterenduvisite_id']).size()
+#insalubre_first_infraction.groupby(['compterenduvisite_id','infraction_id']).size()
 
-
-cr_visite[cr_visite.affaire_id==43110]
-infraction_brut[infraction.affaire_id == 43110].articles
-#l'affaire 43110 qui a entraîné deux visites, 2 articles enfreints...
-infraction['infraction_id'] = infraction['id']
-del infraction['id']
-#Peut-on utiliser compterenduvisite_id?
-sum(infractionhisto.compterenduvisite_id.isin(\
-cr_visite.affaire_id))/len(infractionhisto) ##61.3%
-#Je ne vois pas comment utiliser infractionhisto
+#
+#cr_visite[cr_visite.affaire_id==43110]
+#infraction_brut[infraction.affaire_id == 43110].articles
+##l'affaire 43110 qui a entraîné deux visites, 2 articles enfreints...
+#infraction['infraction_id'] = infraction['id']
+#del infraction['id']
+##Peut-on utiliser compterenduvisite_id?
+#sum(infractionhisto.compterenduvisite_id.isin(\
+#cr_visite.affaire_id))/len(infractionhisto) ##61.3%
+##Je ne vois pas comment utiliser infractionhisto
 
 ####################################
 ###Merge cr_visite et infraction###
@@ -149,8 +157,11 @@ cr_visite.affaire_id))/len(infractionhisto) ##61.3%
 
 #On fait une jointure externe pour conserver les affaires sans infraction
 # TODO: pourquoi par 'left' ?
-affaires = cr_visite.merge(infraction, on = ['affaire_id'],
-                          how='outer')
+#affaires = cr_visite.merge(infraction, on = ['affaire_id'],
+#                          how='outer')
+compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction, left_on = 'affaire_id',
+                           right_on = 'compterenduvisite_id',
+                           how = 'left')
 #Ca marche:
 aff_without_infraction.affaire_id.isin(affaires.affaire_id).all()
 #On garde bien toutes les visites: infraction ou non
