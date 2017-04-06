@@ -159,24 +159,25 @@ insalubre_first_infraction.groupby(['compterenduvisite_id']).size()
 # TODO: pourquoi par 'left' ?
 #affaires = cr_visite.merge(infraction, on = ['affaire_id'],
 #                          how='outer')
-compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction, left_on = 'affaire_id',
-                           right_on = 'compterenduvisite_id',
-                           how = 'left')
-#Ca marche:
-aff_without_infraction.affaire_id.isin(affaires.affaire_id).all()
-#On garde bien toutes les visites: infraction ou non
-
-len(affaires) ##=>70 000
-#affaire a beaucoup plus de lignes que de nombre de visite : pourquoi ?
-cr_visite[cr_visite.affaire_id == 18828]
-#Une affaire avec 5 visites
-len(affaires[affaires.affaire_id == 18828]) ##=>30
-#aboutit à 30 entrées dans la table affaire
-#C'est normal car pour une visite caractérisée par un affaire_id et une date
-#on devra multiplier par le nombre d'infractions relevées: ici 6
-# TODO: non, faire le merge mieux
-affaires.loc[(affaires.affaire_id == 18828) &\
-             (affaires.date =='2012-09-10 00:00:00')]
+compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction, 
+                                         left_on = 'affaire_id',
+                                         right_on = 'compterenduvisite_id',
+                                         how = 'left')
+##Ca marche:
+#aff_without_infraction.affaire_id.isin(compte_rendu_insalubre.affaire_id).all()
+##On garde bien toutes les visites: infraction ou non
+#
+#len(compte_rendu_insalubre) ##=>70 000
+##affaire a beaucoup plus de lignes que de nombre de visite : pourquoi ?
+#cr_visite[cr_visite.affaire_id == 18828]
+##Une affaire avec 5 visites
+#len(compte_rendu_insalubre[compte_rendu_insalubre.affaire_id == 18828]) ##=>30
+##aboutit à 30 entrées dans la table affaire
+##C'est normal car pour une visite caractérisée par un affaire_id et une date
+##on devra multiplier par le nombre d'infractions relevées: ici 6
+## TODO: non, faire le merge mieux
+compte_rendu_insalubre.loc[(compte_rendu_insalubre.affaire_id == 18828) &\
+             (compte_rendu_insalubre.date =='2012-09-10 00:00:00')]
 
 
 #### On part du simple
@@ -185,5 +186,5 @@ affaires.loc[(affaires.affaire_id == 18828) &\
 
 
 
-path_affaires = os.path.join(path_output, 'affaires.csv')
-affaires.to_csv(path_affaires)
+path_affaires = os.path.join(path_output, 'compterenduinsalubre.csv')
+compte_rendu_insalubre.to_csv(path_affaires)

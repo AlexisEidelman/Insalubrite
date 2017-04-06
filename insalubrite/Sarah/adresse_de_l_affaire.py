@@ -18,9 +18,13 @@ def adresse_par_affaires(table):
     '''
     assert 'affaire_id' in table.columns
     
+    if 'libelle' in table.columns:
+        table.rename(columns = {'libelle':'libelle_table'}, inplace = True)
+        
     # étape 1 : signalement affaire
     signalement_affaire = read_table('signalement_affaire')
-    table_signalement_affaire = pd.merge(table, signalement_affaire, on='affaire_id')
+    table_signalement_affaire = pd.merge(table, signalement_affaire, 
+                                         on='affaire_id')
     #    len(table.affaire_id) # => 37322
     #    len(lien_signalement_affaire.affaire_id) ## => 30871
     #    len(result1.affaire_id) ## => 30692
@@ -29,9 +33,9 @@ def adresse_par_affaires(table):
     signalement = read_table('signalement')
     signalement = signalement[['id', 'observations', 'adresse_id']]
     ##Rename 'id' column of signalement table
-    signalement['signalement_id'] = signalement['id']
-    del signalement['id']
-    table_signalement = pd.merge(table_signalement_affaire, signalement, on='signalement_id')
+    signalement.rename(columns = {'id':'signalement_id'}, inplace = True)
+    table_signalement = pd.merge(table_signalement_affaire, signalement, 
+                                 on='signalement_id')
     #    len(table_signalement_affaire.signalement_id) ## => 30692
     #    len(signalement.signalement_id) ## => 36080
     #    len(table_signalement.signalement_id) ## => 30692
@@ -45,16 +49,14 @@ def adresse_par_affaires(table):
     
         # parenthèse: travail sur adrbad
         voie = read_table('voie')
-        voie['voie_id'] = voie['id']
-        del voie['id']
+        voie.rename(columns = {'id':'voie_id'}, inplace = True)
         voie = voie[['voie_id','code_ville','libelle','nom_typo','type_voie']]
         adrbad_voie = pd.merge(voie, adrbad, on='voie_id')
         
        
         arrondissement = read_table('arrondissement')
         arrond = arrondissement[['id', 'codeinsee', 'codepostal', 'nomcommune']]
-        arrond['nsq_ca'] = arrond['id']
-        del arrond['id']
+        arrond.rename(columns = {'id':'nsq_ca'}, inplace = True)
     
         quartier_admin = read_table('quartier_admin')
 
@@ -71,9 +73,11 @@ def adresse_par_affaires(table):
         parcelle_cadastrale = read_table('parcelle_cadastrale')
         parcelle_cadastrale['parcelle_id'] = parcelle_cadastrale['id']
         del parcelle_cadastrale['id']
-        parcelle_cadastrale = parcelle_cadastrale[['parcelle_id','ilot_id','code_cadastre']]
+        parcelle_cadastrale = parcelle_cadastrale[['parcelle_id','ilot_id',\
+                                                   'code_cadastre']]
         #Merge parcelle_cadastrale with ilot on ilot_id
-        arrond_quartier_ilot = pd.merge(arrond_quartier_ilot, parcelle_cadastrale, on = 'ilot_id')
+        arrond_quartier_ilot = pd.merge(arrond_quartier_ilot, 
+                                        parcelle_cadastrale, on = 'ilot_id')
         
         adrbad = pd.merge(adrbad_voie, arrond_quartier_ilot, on='parcelle_id')
 
@@ -91,49 +95,55 @@ def adresse_par_affaires(table):
     # Les 239 qui ne sont pas matché avec adrbad sont matchés avec adrsimple
     adrsimple = read_table('adrsimple')
     table_adrsimple = pd.merge(table_signalement, adrsimple, on='adresse_id')
-    len(table_signalement) # => 30692
-    len(adrsimple)  # => 95461
-    len(table_adrsimple)  # => 239
+    #    len(table_signalement) # => 30692
+    #    len(adrsimple)  # => 95461
+    #    len(table_adrsimple)  # => 239
 
 
     ## étape 3.3 : rassemble adrbad et adrsimple
-    # TODO: 
+    
 
 
     ### sauvegarde les données qui concernent les adressses seules :
-    adresses_final = table_adrbad[['codeinsee', 'codepostal', 'nomcommune',
-                   'numero', 'suffixe1', 'nom_typo', 'affaire_id',
-                   'code_cadastre']]
-    adresses_final['suffixe1'].fillna('', inplace=True)
-    
-    adresses_final['libelle'] = adresses_final['numero'].astype(str) + ' ' + \
-        adresses_final['suffixe1'] + ' ' + \
-        adresses_final['nom_typo'] + ', Paris'
-    adresses_final['libelle'] = adresses_final['libelle'].str.replace('  ', ' ')
+#    table_adrbad['suffixe1'].fillna('', inplace=True)
+#    
+#    table_adrbad['libelle'] = table_adrbad['numero'].astype(str) + ' ' + \
+#        table_adrbad['suffixe1'] + ' ' + \
+#        table_adrbad['nom_typo'] + ', Paris'
+#    table_adrbad['libelle'] = table_adrbad['libelle'].str.replace('  ', ' ')
     
     
-    #pour adresse sarah
-    adresses_final = merge_df_to_ban(
-        adresses_final,
+    #pour adresse bad
+    adresses_bad_final = merge_df_to_ban(
+        table_adrbad,
         os.path.join(path_output, 'temp.csv'),
         ['libelle', 'codepostal'],
         name_postcode = 'codepostal'
         )
+    #pour adresse simple
+    adresses_simple_final = merge_df_to_ban(
+    table_adrsimple,
+    os.path.join(path_output, 'temp_simple.csv'),
+    ['libelle_adresse', 'numero_adresse1', 'codepostal_adresse'],
+    name_postcode = 'codepostal_adresse'
+    )
     
+    adresses_bad_final = adresses_bad_final[['affaire_id', 'date', \
+                                  'infractiontype_id','titre','result_label']]
+    adresses_simple_final = adresses_simple_final[['affaire_id','date',\
+                                  'infractiontype_id','titre','result_label']]
+    adresses_final = pd.concat([adresses_bad_final, adresses_simple_final])
     return adresses_final
 
 
 if __name__ == '__main__':
     ### éude des adresses
-    adresse = read_table('adresse')
-    # est-ce que les adresses sont ou bien dans adrbad ou bien dans adrsimple ?
-    # vu la tête de adresse on peut supposer que oui
-    adrsimple = read_table('adrsimple')
-    
+    #adresse = read_table('adresse')
+    # les adresses sont ou bien dans adrbad ou bien dans adrsimple 
     
     # Merge tables
-    affhygiene = read_table('affhygiene')
-        
-    adresses_final = adresse_par_affaires(affhygiene)
+    path_affaires = os.path.join(path_output, 'compterenduinsalubre.csv')
+    compterenduinsalubre = pd.read_csv(path_affaires)
+    adresses_final = adresse_par_affaires(compterenduinsalubre)
     path_csv_adressses = os.path.join(path_output, 'adresses_ban.csv')
     adresses_final.to_csv(path_csv_adressses, index=False, encoding='utf8')
