@@ -18,72 +18,90 @@ def adresse_par_affaires(table):
     '''
     assert 'affaire_id' in table.columns
     
-    lien_signalement_affaire = read_table('signalement_affaire')
-    result1 = pd.merge(table, lien_signalement_affaire, on='affaire_id')
-    len(table.affaire_id) # => 37322
-    len(lien_signalement_affaire.affaire_id) ## => 30871
-    len(result1.affaire_id) ## => 30692
+    # étape 1 : signalement affaire
+    signalement_affaire = read_table('signalement_affaire')
+    table_signalement_affaire = pd.merge(table, signalement_affaire, on='affaire_id')
+    #    len(table.affaire_id) # => 37322
+    #    len(lien_signalement_affaire.affaire_id) ## => 30871
+    #    len(result1.affaire_id) ## => 30692
+    
+    # étape 2 : signalement
     signalement = read_table('signalement')
     signalement = signalement[['id', 'observations', 'adresse_id']]
     ##Rename 'id' column of signalement table
     signalement['signalement_id'] = signalement['id']
     del signalement['id']
+    table_signalement = pd.merge(table_signalement_affaire, signalement, on='signalement_id')
+    #    len(table_signalement_affaire.signalement_id) ## => 30692
+    #    len(signalement.signalement_id) ## => 36080
+    #    len(table_signalement.signalement_id) ## => 30692
     
-    result2 = pd.merge(result1, signalement, on='signalement_id')
-    len(result1.signalement_id) ## => 30692
-    len(signalement.signalement_id) ## => 36080
-    len(result2.signalement_id) ## => 30692
+    # étape 3 : adrbad et adrsimple
+    ## étape 3.1 : adrbad
+    def adrbad_complet():
+        adrbad = read_table('adrbad')
+        adrbad = adrbad[['adresse_id','parcelle_id','voie_id',
+                         'numero', 'suffixe1', 'suffixe2', 'suffixe3']]
     
-    # Link with adresses
-    adrbad = read_table('adrbad')
-    adrbad = adrbad[['adresse_id','parcelle_id','voie_id',
-                     'numero', 'suffixe1', 'suffixe2', 'suffixe3']]
+        # parenthèse: travail sur adrbad
+        voie = read_table('voie')
+        voie['voie_id'] = voie['id']
+        del voie['id']
+        voie = voie[['voie_id','code_ville','libelle','nom_typo','type_voie']]
+        adrbad_voie = pd.merge(voie, adrbad, on='voie_id')
+        
+       
+        arrondissement = read_table('arrondissement')
+        arrond = arrondissement[['id', 'codeinsee', 'codepostal', 'nomcommune']]
+        arrond['nsq_ca'] = arrond['id']
+        del arrond['id']
     
-    result_adrbad = pd.merge(result2, adrbad, on='adresse_id')
-    len(result2) # => 30692
-    len(adrbad)  # => 146306
-    len(result_adrbad)  # => 30453
+        quartier_admin = read_table('quartier_admin')
+
+        arrond_quartier = pd.merge(arrond, quartier_admin, on = 'nsq_ca')        
+        arrond_quartier['nqu'] = arrond_quartier['nsq_qu']
+        del arrond_quartier['nsq_qu']
+        
+        ilot = read_table('ilot')
+        ilot['ilot_id'] = ilot['nsq_ia']
+        del ilot['nsq_ia']
+        arrond_quartier_ilot = pd.merge(arrond_quartier, ilot, on = 'nqu')
+        
+
+        parcelle_cadastrale = read_table('parcelle_cadastrale')
+        parcelle_cadastrale['parcelle_id'] = parcelle_cadastrale['id']
+        del parcelle_cadastrale['id']
+        parcelle_cadastrale = parcelle_cadastrale[['parcelle_id','ilot_id','code_cadastre']]
+        #Merge parcelle_cadastrale with ilot on ilot_id
+        arrond_quartier_ilot = pd.merge(arrond_quartier_ilot, parcelle_cadastrale, on = 'ilot_id')
+        
+        adrbad = pd.merge(adrbad_voie, arrond_quartier_ilot, on='parcelle_id')
+
+        return adrbad
+
+
+    adrbad = adrbad_complet()
+    table_adrbad = pd.merge(table_signalement, adrbad, on='adresse_id')
+    #    len(table_signalement) # => 30692
+    #    len(adrbad)  # => 146306
+    #    len(table_adrbad)  # => 30453
     
-    voie = read_table('voie')
-    voie['voie_id'] = voie['id']
-    del voie['id']
-    voie = voie[['voie_id','code_ville','libelle','nom_typo','type_voie']]
-    
-    
-    parcelle_cadastrale = read_table('parcelle_cadastrale')
-    parcelle_cadastrale['parcelle_id'] = parcelle_cadastrale['id']
-    del parcelle_cadastrale['id']
-    parcelle_cadastrale = parcelle_cadastrale[['parcelle_id','ilot_id','code_cadastre']]
-    #Merge parcelle_cadastrale with ilot on ilot_id
-    arrondissement = read_table('arrondissement')
-    arrondissement = arrondissement[['id', 'codeinsee', 'codepostal', 'nomcommune']]
-    arrondissement['nsq_ca'] = arrondissement['id']
-    del arrondissement['id']
-    quartier_admin = read_table('quartier_admin')
-    result = pd.merge(arrondissement, quartier_admin, on = 'nsq_ca')
-    result['nqu'] = result['nsq_qu']
-    del result['nsq_qu']
-    ilot = read_table('ilot')
-    ilot['ilot_id'] = ilot['nsq_ia']
-    del ilot['nsq_ia']
-    result = pd.merge(result, ilot, on = 'nqu')
-    result = pd.merge(result, parcelle_cadastrale, on = 'ilot_id')
-    
-    
-    result4 = pd.merge(voie, result_adrbad, on='voie_id')
-    result5 = pd.merge(result, result4, on='parcelle_id')
-    result_adrbad = result5
-    
-    # Les 239 qui ne sont pas matché avec adrbad sont marché avec adrsimple
+
+    ## étape 3.2 : adrsimple    
+    # Les 239 qui ne sont pas matché avec adrbad sont matchés avec adrsimple
     adrsimple = read_table('adrsimple')
-    result_adrsimple = pd.merge(result2, adrsimple, on='adresse_id')
-    len(result2) # => 30692
+    table_adrsimple = pd.merge(table_signalement, adrsimple, on='adresse_id')
+    len(table_signalement) # => 30692
     len(adrsimple)  # => 95461
-    len(result_adrsimple)  # => 239
-    
-    
+    len(table_adrsimple)  # => 239
+
+
+    ## étape 3.3 : rassemble adrbad et adrsimple
+    # TODO: 
+
+
     ### sauvegarde les données qui concernent les adressses seules :
-    adresses_final = result_adrbad[['codeinsee', 'codepostal', 'nomcommune',
+    adresses_final = table_adrbad[['codeinsee', 'codepostal', 'nomcommune',
                    'numero', 'suffixe1', 'nom_typo', 'affaire_id',
                    'code_cadastre']]
     adresses_final['suffixe1'].fillna('', inplace=True)
