@@ -62,18 +62,79 @@ aff_without_infraction = cr_visite[cr_visite.affaire_id.isin(l)]
 ##################
 
 infractionhisto = read_table('infractionhisto')
-infractionhisto.infraction_id.isin(infraction.id).all() #True
+
+# étudie le lien entre infractionhisto et infraction
+len(infraction_brut)  # 31022
+len(infractionhisto)  # 49614
+assert infractionhisto.infraction_id.isin(infraction.id).all()
+# il y a des infractionhisto qui renvoie à la même infraction
+# infractionhisto.infraction_id.value_counts()
+# exemple infractionhisto[infractionhisto.infraction_id == 9419]
+# => même type infraction, date hstorisation différentes
+
+# on regarde le lien avec le compte_rendu de visite
+
 infraction.id.isin(infractionhisto.infraction_id).all() #False
 #TODO: Pourquoi les id de infraction ne sont_ils pas tous dans infractionhisto?
 infractionhisto.titre.isin(infraction.titre).all() #False
 infractionhisto.articles.value_counts(dropna = False)
+
+
 #La plupart des affaires dans infractionhisto ont des valeurs articles = NaN
+#infractionhisto[infractionhisto.articles.isnull()].head()
 #Cela correspond-il a des affaires sans infractions relevées?
-infractionhisto[pd.isnull(infractionhisto.articles)].head()
-infractionhisto[pd.isnull(\
-infractionhisto.articles)].compterenduvisite_id.value_counts()
+# => oui dans l'immense majorité des cas (infractiontype_id == 30)
+
+
+
+infractionhisto.compterenduvisite_id.value_counts()
+# pourquoi on a plusieurs infratction reliée à une même visite ?
+# exemple infractionhisto[infractionhisto.compterenduvisite_id == 37955]
+# TODO: voir avec le SI d'où ça peut venir
+
+# => il peut y avoir plusieurs infractions constatée sur une même visite
+
+
+
+## infractionhisto pointe vers cr_visite qui pointe vers affaire
+## infractionhisto pointe vers infraction qui pointe vers affaire
+# TODO: verifier la cohérence
+
+
+# on retire les Reprise qui sont dures à exploiter
+# TODO: vérifier le sens de ces reprises et la pertinence de les enlever
+reprise = (infractionhisto['libelle'] == 'Reprise') & \
+    (infractionhisto['titre'] == 'Reprise')
+infractionhisto = infractionhisto[~reprise]
+
+# il y a un problème de cohérence entre l'infraction type et articles, titre et
+#libelle
+# TODO: mettre les reprises (les premières lignes) de côtés
+infractiontype = read_table('infractiontype')
+infractiontype.drop(['active', 'ordre'], axis=1, inplace=True)
+infractiontype.rename(columns={'id': 'infractiontype_id'}, inplace=True)
+
+infractionhisto_avant_merge = infractionhisto[['id', 'date_historisation',
+                                               'compterenduvisite_id',
+                                               'infraction_id',
+                                               'infractiontype_id']]
+
+# pour tester :
+# infractionhisto.merge(infractiontype, on='infractiontype_id')
+# test = infractionhisto.merge(infractiontype, on='infractiontype_id')
+
+infractionhisto = infractionhisto_avant_merge.merge(infractiontype,
+                                                    on='infractiontype_id',
+                                                    how='left')
+
+# hypothèse, les bâtiments insalubre sont ceux pour lesquels on a
+# une infraction autre que 30 - Libre
+insalubre = infractionhisto[infractionhisto.infractiontype != 30]
+
+
+
 cr_visite[cr_visite.affaire_id==43110]
-read_table('infraction')[infraction.affaire_id == 43110].articles
+infraction_brut[infraction.affaire_id == 43110].articles
 #l'affaire 43110 qui a entraîné deux visites, 2 articles enfreints...
 infraction['infraction_id'] = infraction['id']
 del infraction['id']
@@ -105,6 +166,13 @@ len(affaires[affaires.affaire_id == 18828]) ##=>30
 # TODO: non, faire le merge mieux
 affaires.loc[(affaires.affaire_id == 18828) &\
              (affaires.date =='2012-09-10 00:00:00')]
+
+
+#### On part du simple
+# si pour une affaire, il y a un CR de visite avec une infration, alors
+# on considère qu'il y a un problème.
+
+
 
 path_affaires = os.path.join(path_output, 'affaires.csv')
 affaires.to_csv(path_affaires)
