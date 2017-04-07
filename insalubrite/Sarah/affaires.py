@@ -14,7 +14,12 @@ from insalubrite.Sarah.adresse_de_l_affaire import adresse_par_affaires
 from insalubrite.config_insal import path_output
 
 cr_visite_brut = read_table('cr_visite')
-cr_visite  = cr_visite_brut[['affaire_id', 'date']].drop_duplicates()
+all_but_id = [x for x in cr_visite_brut.columns 
+    if x not in ['id', 'date_creation']
+    ]
+#cr_visite  = cr_visite_brut.drop_duplicates(subset=all_but_id) #à ne pas faire 
+    # parce que l'on perd des id et que l'on rate un merge plus loin
+cr_visite  = cr_visite_brut[['id', 'affaire_id', 'date']]
 len(cr_visite) ##=>49548 visites
 cr_visite.affaire_id.value_counts()
 cr_visite.affaire_id.nunique() #34122 affaires distinctes
@@ -23,12 +28,9 @@ cr_visite.date.nunique() ##=>4073 dates
 # TODO: corriger pour pd.to_datetime(cr_visite.date) tourne
 
 
-# à une même date on peut avoir plusieurs visites
-# Par exemple le 2010-04-14 on a 84 visites
-cr_visite[cr_visite.date == '2010-04-14 00:00:00'].affaire_id.value_counts()
-
-# à une date donnée une affaire entraîne une seule visite
-assert all(cr_visite.groupby(['affaire_id', 'date']).size() == 1)
+# une affaire entraîne peut avoir plusieurs visites dans la journée
+#assert not all(cr_visite.groupby(['affaire_id', 'date']).size() == 1)
+#cr_visite_brut[cr_visite.affaire_id == 14665]
 
 #####################
 #####Infraction ####
@@ -160,10 +162,14 @@ insalubre_first_infraction.groupby(['compterenduvisite_id']).size()
 # TODO: pourquoi par 'left' ?
 #affaires = cr_visite.merge(infraction, on = ['affaire_id'],
 #                          how='outer')
+del insalubre_first_infraction['id']
 compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction, 
-                                         left_on = 'affaire_id',
+                                         left_on = 'id',
                                          right_on = 'compterenduvisite_id',
-                                         how = 'left')
+                                         how = 'right',
+                                         # indicator=True
+                                         )
+del compte_rendu_insalubre['id'] # car on a compterenduvisite_id
 ##Ca marche:
 #aff_without_infraction.affaire_id.isin(compte_rendu_insalubre.affaire_id).all()
 ##On garde bien toutes les visites: infraction ou non
@@ -180,12 +186,7 @@ compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction,
 compte_rendu_insalubre.loc[(compte_rendu_insalubre.affaire_id == 18828) &\
              (compte_rendu_insalubre.date =='2012-09-10 00:00:00')]
 
+affaires = adresse_par_affaires(compte_rendu_insalubre)                    
 
-#### On part du simple
-# si pour une affaire, il y a un CR de visite avec une infration, alors
-# on considère qu'il y a un problème.
-
-
-
-path_affaires = os.path.join(path_output, 'compterenduinsalubre.csv')
-compte_rendu_insalubre.to_csv(path_affaires, encoding='utf8')
+path_affaires = os.path.join(path_output, 'compterenduinsalubre_v0.csv')
+affaires.to_csv(path_affaires, encoding='utf8', index=False)
