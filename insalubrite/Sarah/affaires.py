@@ -10,6 +10,7 @@ import pandas as pd
 import os
 
 from insalubrite.Sarah.read import read_table
+from insalubrite.Sarah.adresse_de_l_affaire import adresse_par_affaires
 from insalubrite.config_insal import path_output
 
 cr_visite_brut = read_table('cr_visite')
@@ -187,4 +188,4 @@ compte_rendu_insalubre.loc[(compte_rendu_insalubre.affaire_id == 18828) &\
 
 
 path_affaires = os.path.join(path_output, 'compterenduinsalubre.csv')
-compte_rendu_insalubre.to_csv(path_affaires)
+compte_rendu_insalubre.to_csv(path_affaires, encoding='utf8')
