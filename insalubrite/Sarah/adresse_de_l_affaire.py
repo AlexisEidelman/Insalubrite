@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar 24 12:15:44 2017
+Relie l'affaire à l'adresse
 
 """
 import os
@@ -58,18 +58,15 @@ def adresse_par_affaires(table):
         quartier_admin = read_table('quartier_admin')
 
         arrond_quartier = pd.merge(arrond, quartier_admin, on = 'nsq_ca')        
-        arrond_quartier['nqu'] = arrond_quartier['nsq_qu']
-        del arrond_quartier['nsq_qu']
+        arrond_quartier.rename(columns = {'nsq_qu':'nqu'}, inplace = True)
         
         ilot = read_table('ilot')
-        ilot['ilot_id'] = ilot['nsq_ia']
-        del ilot['nsq_ia']
+        ilot.rename(columns = {'nsq_ia':'ilot_id'}, inplace = True)
         arrond_quartier_ilot = pd.merge(arrond_quartier, ilot, on = 'nqu')
         
 
         parcelle_cadastrale = read_table('parcelle_cadastrale')
-        parcelle_cadastrale['parcelle_id'] = parcelle_cadastrale['id']
-        del parcelle_cadastrale['id']
+        parcelle_cadastrale.rename(columns = {'id':'parcelle_id'}, inplace = True)
         parcelle_cadastrale = parcelle_cadastrale[['parcelle_id','ilot_id',\
                                                    'code_cadastre']]
         #Merge parcelle_cadastrale with ilot on ilot_id
@@ -82,6 +79,7 @@ def adresse_par_affaires(table):
 
 
     adrbad = adrbad_complet()
+    adrbad.drop(['libelle'], axis = 1, inplace = True)
     
     assert 'libelle' not in adrbad.columns
     adrbad['suffixe1'].fillna('', inplace=True)
@@ -100,13 +98,14 @@ def adresse_par_affaires(table):
     
 
     ## étape 3.3 : rassemble adrbad et adrsimple
+    #TODO: Joindre adrbad et adrsimple
     adresse = adrbad.append(adrsimple)
     
     
     
-    ## étape 3.4 : fusionne
+    ## étape 3.4 : fusionne table et adresse
     
-    table_adrbad = pd.merge(table_signalement, adrbad, on='adresse_id')
+    #table_adrbad = pd.merge(table_signalement, adrbad, on='adresse_id')
     #    len(table_signalement) # => 30692
     #    len(adrbad)  # => 146306
     #    len(table_adrbad)  # => 30453
@@ -114,37 +113,27 @@ def adresse_par_affaires(table):
     
 
     # Les 239 qui ne sont pas matché avec adrbad sont matchés avec adrsimple
-    table_adrsimple = pd.merge(table_signalement, adrsimple, on='adresse_id')
+    #table_adrsimple = pd.merge(table_signalement, adrsimple, on='adresse_id')
     #    len(table_signalement) # => 30692
     #    len(adrsimple)  # => 95461
     #    len(table_adrsimple)  # => 239
-
+    if 'libelle' in table_signalement.columns:
+        table_signalement.rename(columns = {'libelle':'libelle_table'}, inplace = True)
+    table_adresses = table_signalement.merge(adresse, on='adresse_id',
+                                             how = 'left')
     
     
-
-    ### sauvegarde les données qui concernent les adressses seules :
-    
-    
-    #pour adresse bad
-    adresses_bad_final = merge_df_to_ban(
-        table_adrbad,
+    ## étape 3.5 : envoie à l'API
+    adresses_final = merge_df_to_ban(
+        table_adresses,
         os.path.join(path_output, 'temp.csv'),
         ['libelle', 'codepostal'],
         name_postcode = 'codepostal'
         )
-    #pour adresse simple
-    adresses_simple_final = merge_df_to_ban(
-    table_adrsimple,
-    os.path.join(path_output, 'temp_simple.csv'),
-    ['libelle', 'codepostal_adresse'],
-    name_postcode = 'codepostal_adresse'
-    )
     
-    adresses_bad_final = adresses_bad_final[['affaire_id', 'date', \
+    adresses_final = adresses_final[['affaire_id', 'date', \
                                   'infractiontype_id','titre','result_label']]
-    adresses_simple_final = adresses_simple_final[['affaire_id','date',\
-                                  'infractiontype_id','titre','result_label']]
-    adresses_final = pd.concat([adresses_bad_final, adresses_simple_final])
+    adresses_final.drop_duplicates()
     return adresses_final
 
 
@@ -159,3 +148,4 @@ if __name__ == '__main__':
     adresses_final = adresse_par_affaires(compterenduinsalubre)
     path_csv_adressses = os.path.join(path_output, 'adresses_ban.csv')
     adresses_final.to_csv(path_csv_adressses, index=False, encoding='utf8')
+    adresses_final.groupby(['affaire_id','date']).size()
