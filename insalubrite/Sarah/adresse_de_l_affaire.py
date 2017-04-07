@@ -15,13 +15,13 @@ from insalubrite.match_to_ban import merge_df_to_ban
 def adresse_par_affaires(table):
     ''' retrounes la table avec l'adresse correspondant à chaque affaire
         repérée par affaire_id
+        en éliminant les affaire_id qui ne sont pas dans signalement_affaire
     '''
     assert 'affaire_id' in table.columns
         
     # étape 1 : signalement affaire
     signalement_affaire = read_table('signalement_affaire')
-    table_signalement_affaire = pd.merge(table, signalement_affaire, 
-                                         on='affaire_id')
+    table_signalement_affaire = pd.merge(table, signalement_affaire, on='affaire_id')
     #    len(table.affaire_id) # => 37322
     #    len(lien_signalement_affaire.affaire_id) ## => 30871
     #    len(result1.affaire_id) ## => 30692
@@ -98,43 +98,36 @@ def adresse_par_affaires(table):
     
 
     ## étape 3.3 : rassemble adrbad et adrsimple
-    #TODO: Joindre adrbad et adrsimple
     adresse = adrbad.append(adrsimple)
     
-    
-    
     ## étape 3.4 : fusionne table et adresse
-    
-    #table_adrbad = pd.merge(table_signalement, adrbad, on='adresse_id')
-    #    len(table_signalement) # => 30692
-    #    len(adrbad)  # => 146306
-    #    len(table_adrbad)  # => 30453
-    
-    
-
-    # Les 239 qui ne sont pas matché avec adrbad sont matchés avec adrsimple
-    #table_adrsimple = pd.merge(table_signalement, adrsimple, on='adresse_id')
-    #    len(table_signalement) # => 30692
-    #    len(adrsimple)  # => 95461
-    #    len(table_adrsimple)  # => 239
     if 'libelle' in table_signalement.columns:
         table_signalement.rename(columns = {'libelle':'libelle_table'}, inplace = True)
-    table_adresses = table_signalement.merge(adresse, on='adresse_id',
+    table_adresses = table_signalement.merge(adresse[['adresse_id', 'libelle',
+                                                      'codepostal', 'code_cadastre']],
+                                             on='adresse_id',
                                              how = 'left')
-    
+    len(table_signalement) # => 38534
+    len(adresse)  # => 241767
+    len(table_adresses)  # => 38534    
     
     ## étape 3.5 : envoie à l'API
-    adresses_final = merge_df_to_ban(
+    print("appel à l'api de  adresse.data.gouv.fr, cette opération peut prendre du temps")
+    table_ban = merge_df_to_ban(
         table_adresses,
         os.path.join(path_output, 'temp.csv'),
         ['libelle', 'codepostal'],
         name_postcode = 'codepostal'
         )
+
+    table_ban.rename(columns = {
+        'result_label':'adresse_ban',
+        'result_score': 'score_matching_adresse',
+        'result_id': 'id_adresse'
+        },
+        inplace = True)
     
-    adresses_final = adresses_final[['affaire_id', 'date', \
-                                  'infractiontype_id','titre','result_label']]
-    adresses_final.drop_duplicates()
-    return adresses_final
+    return table_ban
 
 
 if __name__ == '__main__':
