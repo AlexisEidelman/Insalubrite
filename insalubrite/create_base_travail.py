@@ -26,12 +26,13 @@ import pandas as pd
 
 from insalubrite.config_insal import path_bspp, path_output
 
-path_sarah = os.path.join(path_output, 'adresses_ban.csv')
-if not os.path.exists(path_sarah):
-    import insalubrite.Sarah.adresse_de_l_affaire
-adresses_sarah = pd.read_csv(path_sarah)
+path_affaires = os.path.join(path_output, 'compterenduinsalubre_v0.csv')
+if not os.path.exists(path_affaires):
+    import insalubrite.Sarah.affaires
+adresses_sarah = pd.read_csv(path_affaires)
+adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
 sarah = adresses_sarah
-
+sarah.rename(columns={'id_adresse': 'result_id'}, inplace=True)
 
 ###########################
 ###         BSPP        ###
