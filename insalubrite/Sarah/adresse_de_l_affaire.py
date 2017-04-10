@@ -98,11 +98,8 @@ def adresse_par_affaires(table):
     
 
     ## étape 3.3 : rassemble adrbad et adrsimple
-    #TODO: Joindre adrbad et adrsimple
     adresse = adrbad.append(adrsimple)
-    
-    
-    
+     
     ## étape 3.4 : fusionne table et adresse
     
     #table_adrbad = pd.merge(table_signalement, adrbad, on='adresse_id')
