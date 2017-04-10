@@ -56,3 +56,42 @@ for name in tables_on_disk:
 
 print(potentiel_match)
 # return ['ficherecolem']
+
+
+
+
+####
+# On regarde la cohérence entre les colonnes de infraction_histo
+# et celle que l'on peut avoir dans infraction_type
+####
+
+# il y a un problème de cohérence entre l'infraction type et articles, titre et
+#libelle
+
+infraction_histo = read_table('infractionhisto')
+
+infractiontype = read_table('infractiontype')
+infractiontype.drop(['active', 'ordre'], axis=1, inplace=True)
+infractiontype.rename(columns={'id': 'infractiontype_id'}, inplace=True)
+
+test = infraction_histo.merge(infractiontype,
+                              on='infractiontype_id',
+                                        how='outer', indicator=True)
+
+
+pb_article = test['articles_x'] != test['articles_y']
+test['pb_article'] = pb_article
+pb_titre = test['titre_x'] != test['titre_y']
+test['pb_titre'] = pb_titre
+pb_libelle = test['libelle_x'] != test['libelle_y']
+test['pb_libelle'] = pb_libelle
+pb_quelconque = pb_article | pb_titre | pb_libelle
+
+pb = test[pb_quelconque]
+len(test) - len(pb)  # on a 30% sans problème
+pb[['pb_libelle', 'pb_titre', 'pb_article']].sum()
+pb.groupby(['pb_libelle', 'pb_titre', 'pb_article']).size()
+# bcp de problème de cohérence titre
+
+pb[pb_libelle].groupby(['libelle_x','libelle_y']).size()
+infraction_histo.libelle.isin(infractiontype.libelle).value_counts()
