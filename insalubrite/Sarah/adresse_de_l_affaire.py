@@ -99,7 +99,7 @@ def adresse_par_affaires(table):
 
     ## étape 3.3 : rassemble adrbad et adrsimple
     adresse = adrbad.append(adrsimple)
-    
+
     ## étape 3.4 : fusionne table et adresse
     if 'libelle' in table_signalement.columns:
         table_signalement.rename(columns = {'libelle':'libelle_table'}, inplace = True)

@@ -5,7 +5,6 @@ Created on Tue Apr  4 13:53:35 2017
 
 @author: kevin
 """
-
 import pandas as pd
 import os
 
@@ -25,12 +24,27 @@ cr_visite.affaire_id.value_counts()
 cr_visite.affaire_id.nunique() #34122 affaires distinctes
                               #avec n>=1 visites chacune
 cr_visite.date.nunique() ##=>4073 dates
-# TODO: corriger pour pd.to_datetime(cr_visite.date) tourne
+
+cr_visite.date = pd.to_datetime(cr_visite.date, errors = 'coerce')
+##On passe de 85 valeurs non attribuées NaN à 88 valeurs de dates NaT
+#l = cr_visite_brut[pd.isnull(cr_visite_brut.date)].affaire_id
+#cr_visite_bad_dates = cr_visite[pd.isnull(cr_visite.date)]
+#l2 =  cr_visite_bad_dates.affaire_id
+#l2.isin(l).value_counts()
+#cr_visite_bad_dates2 = cr_visite_bad_dates[~l2.isin(l)]
+###=> 26232, 6837, 6480 sont les NaT rajoutés par to_datetime
+##Voyons un peu ce qui se passe
+#cr_visite_brut[cr_visite_brut.affaire_id.isin([26232, 6837, 6480])]
+#cr_visite_brut[['date','date_creation']].sample(60)
+#On conclut que les dates de ces affaires ont été mal écrites
+##De toute façon seules 5 affaires sur 34000 sont concernées
+#On transforme ces dates en NaT
 
 
 # une affaire entraîne peut avoir plusieurs visites dans la journée
 #assert not all(cr_visite.groupby(['affaire_id', 'date']).size() == 1)
 #cr_visite_brut[cr_visite.affaire_id == 14665]
+
 
 #####################
 #####Infraction ####
@@ -38,26 +52,17 @@ cr_visite.date.nunique() ##=>4073 dates
 
 #infractiontype_id et titre
 infraction_brut = read_table('infraction')
-infraction_brut.infractiontype_id.value_counts()
-infraction_brut[infraction_brut.infractiontype_id == 30].titre.value_counts()
-infraction_brut[infraction_brut.infractiontype_id == 29].titre.value_counts()
-##un infractiontype_id correspond en général à plusieurs titres
-infraction_brut.titre.value_counts()
-#Top 3: 'humidité de condensation', 'Reprise', 'infiltrations EU'
-infraction_brut[infraction_brut.titre == \
-'infiltrations EU'].infractiontype_id.value_counts()
-##un titre correspond à plusieurs infractiontype_id
-
-#On va garder l'attribut titre plutôt que articles car il est plus explicite
-infraction = infraction_brut[['affaire_id', 'id', 'titre']]
+infraction_brut.groupby(['infractiontype_id','titre']).apply(len)
+#On va garder infractiontype
+infraction = infraction_brut[['affaire_id', 'id', 'infractiontype_id']]
 len(set(infraction.affaire_id)) #19090 affaires ont relevé des infractions
 sum(infraction.affaire_id.isin(cr_visite.affaire_id))/len(infraction) #=>97,23%
 #97,23% des visites qui chacune ont mis en exergue un type d'infraction.
 #Trouver les articles enfreints dans l'attribut 'articles'
 
-#Visites suite auxquelles on n'a pas relevé d'infraction
-l = set(cr_visite.affaire_id) - set(infraction.affaire_id)
-aff_without_infraction = cr_visite[cr_visite.affaire_id.isin(l)]
+##Visites suite auxquelles on n'a pas relevé d'infraction
+#l = set(cr_visite.affaire_id) - set(infraction.affaire_id)
+#aff_without_infraction = cr_visite[cr_visite.affaire_id.isin(l)]
 
 
 ####################
@@ -77,12 +82,6 @@ assert infractionhisto.infraction_id.isin(infraction.id).all()
 
 # on regarde le lien avec le compte_rendu de visite
 
-infraction.id.isin(infractionhisto.infraction_id).all() #False
-#TODO: Pourquoi les id de infraction ne sont_ils pas tous dans infractionhisto?
-infractionhisto.titre.isin(infraction.titre).all() #False
-infractionhisto.articles.value_counts(dropna = False)
-
-
 #La plupart des affaires dans infractionhisto ont des valeurs articles = NaN
 #infractionhisto[infractionhisto.articles.isnull()].head()
 #Cela correspond-il a des affaires sans infractions relevées?
@@ -97,11 +96,6 @@ infractionhisto.compterenduvisite_id.value_counts()
 
 # => il peut y avoir plusieurs infractions constatée sur une même visite
 
-
-
-## infractionhisto pointe vers cr_visite qui pointe vers affaire
-## infractionhisto pointe vers infraction qui pointe vers affaire
-# TODO: verifier la cohérence
 
 
 # on retire les Reprise qui sont dures à exploiter
@@ -158,31 +152,13 @@ insalubre_first_infraction.groupby(['compterenduvisite_id']).size()
 ###Merge cr_visite et infraction###
 ###################################
 
-#On fait une jointure externe pour conserver les affaires sans infraction
-# TODO: pourquoi par 'left' ?
-#affaires = cr_visite.merge(infraction, on = ['affaire_id'],
-#                          how='outer')
+
 del insalubre_first_infraction['id']
 compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction, 
                                          left_on = 'id',
                                          right_on = 'compterenduvisite_id',
-                                         how = 'right',
-                                         # indicator=True
-                                         )
-del compte_rendu_insalubre['id'] # car on a compterenduvisite_id
-##Ca marche:
-#aff_without_infraction.affaire_id.isin(compte_rendu_insalubre.affaire_id).all()
-##On garde bien toutes les visites: infraction ou non
-#
-#len(compte_rendu_insalubre) ##=>70 000
-##affaire a beaucoup plus de lignes que de nombre de visite : pourquoi ?
-#cr_visite[cr_visite.affaire_id == 18828]
-##Une affaire avec 5 visites
-#len(compte_rendu_insalubre[compte_rendu_insalubre.affaire_id == 18828]) ##=>30
-##aboutit à 30 entrées dans la table affaire
-##C'est normal car pour une visite caractérisée par un affaire_id et une date
-##on devra multiplier par le nombre d'infractions relevées: ici 6
-## TODO: non, faire le merge mieux
+                                         how = 'right')
+
 compte_rendu_insalubre.loc[(compte_rendu_insalubre.affaire_id == 18828) &\
              (compte_rendu_insalubre.date =='2012-09-10 00:00:00')]
 
