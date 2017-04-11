@@ -127,3 +127,47 @@ def coherence_infractions():
 #    affhygiene = read_table('affhygiene')
 
 
+def coherence_arretehyautre_pvscp():
+    ''' Question : quelle cohérence entre arretehyautre et pvscp ? '''
+    ## Ne marche pas !    
+    
+    arrete = read_table('arretehyautre')[['id', 'affaire_id','type_id']]
+    arrete.rename(columns={'id': 'arrete_hygiene_id'}, inplace=True)
+        
+    pvcsp = read_table('pvcsp')
+    
+    ## Première vérification
+    pvcsp_avec_arrete = pvcsp.merge(arrete,
+                                    on='arrete_hygiene_id',
+                                    how='outer',
+                                    indicator=True)
+    # bcp moins de pvscp que d'arrete mais tous dedans.
+    # supsicion : il n'y a que les arrêté en cours, les autres sont dans classés
+    # sinon, il y a bien cohérence puisque les pvcsp renvoie à arrete
+    
+    ## vérification des cohérences des affaires
+    cr = read_table('cr_visite')
+    cr = cr[['id', 'affaire_id']]
+    cr.rename(columns={'id': 'compte_rendu_id'}, inplace=True)
+    
+    arrete_avec_cr = arrete.merge(cr, 
+                                       on='affaire_id',
+                                       how='left', 
+                                       indicator=True)
+    # => 15 non match ? cf arrete_avec_cr._merge.value_counts()
+    
+                                       
+    pvcsp_avec_cr = pvcsp.merge(cr,
+                                on='compte_rendu_id',
+                                how='left',
+                                indicator=True)
+    # pvcsp_avec_cr._merge.value_counts()
+    
+    affaires_pvscp =  pvcsp_avec_cr.affaire_id
+    affaires_arrete = arrete_avec_cr.affaire_id
+    assert all(affaires_pvscp.isin(affaires_arrete))
+    assert not all(affaires_arrete.isin(affaires_pvscp))
+    # confirme la supsicion : 
+    # il n'y a dans pvcsp que les arrêté en cours,
+    # les autres sont dans classés (table classement)
+    
