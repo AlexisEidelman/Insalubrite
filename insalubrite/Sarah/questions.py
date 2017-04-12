@@ -36,23 +36,38 @@ def affaires_hyg_ou_raval():
     assert(all(affaire['id'].isin(liste_affaire)))
 
 
-def _recherche_valeur_in_id(liste_valeurs, in_var = 'id'):
+def _recherche_valeurs_in_id(liste_valeurs, in_vars = ['id']):
     ''' fonction utile pour la questions suivante
         elle cherche dans les tables si les id contiennent toutes les
         valeurs de liste_valeurs
+
+        si la liste des valeurs est _id alors on cherche dans toutes les
+        colonnes se terminant par _id
     '''
     primary_key, foreign_key = read_sql()
     tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))
 
     potentiel_match = []
+    vars_a_etudier = in_vars
+
     for name in tables_on_disk:
         tab = read_table(name, nrows=0)
-        if in_var in tab.columns:
+        if in_vars == '_id':
+            vars_a_etudier = [col for col in tab.columns if col[-3:] == '_id']
+
+        if any([var in tab.columns for var in vars_a_etudier]):
             tab = read_table(name)
-            id_tab = tab[in_var]
-            if all(liste_valeurs.isin(id_tab)):
-                potentiel_match.append(name)
+
+            for var in vars_a_etudier:
+                if var in tab.columns:
+                    id_tab = tab[var]
+                    if all(liste_valeurs.isin(id_tab)):
+                        if in_vars == '_id':
+                            potentiel_match.append((name, var))
+                        else:
+                            potentiel_match.append(name)
     return potentiel_match
+
 
 def question_bien_id():
     ''' On va regarder les id de toutes les tables et
@@ -60,9 +75,26 @@ def question_bien_id():
     '''
     hyg = read_table('affhygiene')
     liste_valeurs = hyg.bien_id
-    print(_recherche_valeur_in_id(liste_valeurs))
+    print(_recherche_valeurs_in_id(liste_valeurs))
     # => ['ficherecolem']
 
+
+def signalement_des_affaires():
+    ''' lorsque l'on fuisionne affhygiene avec signalement affaire,
+        on a beaucoup de raté, comment se fait-ce ?
+    '''
+    affaire = read_table('affaire')
+    signalement_affaire = read_table('signalement_affaire')
+    test = pd.merge(affaire, signalement_affaire,
+                                         left_on='id',
+                                         right_on='affaire_id',
+                                         how='outer',
+                                         indicator='provenance')
+    #test.provenance.value_counts()
+    #both          30871
+    #left_only     27896
+    # => beaucoup d'affaire n'ont pas de signalement
+    id_affaires_sans_signalement = test.loc[test.provenance == 'left_only', 'id']
 
 
 def coherence_libelle_infractiontype():
