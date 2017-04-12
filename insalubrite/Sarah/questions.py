@@ -36,25 +36,31 @@ def affaires_hyg_ou_raval():
     assert(all(affaire['id'].isin(liste_affaire)))
 
 
-def question_bien_id():
-    ''' On va regarder les id de toutes les tables et
-    selectionner celle qui contiennent les valeur de bien_id
+def _recherche_valeur_in_id(liste_valeurs, in_var = 'id'):
+    ''' fonction utile pour la questions suivante
+        elle cherche dans les tables si les id contiennent toutes les
+        valeurs de liste_valeurs
     '''
-    hyg = read_table('affhygiene')
-
     primary_key, foreign_key = read_sql()
     tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))
 
     potentiel_match = []
     for name in tables_on_disk:
         tab = read_table(name, nrows=0)
-        if 'id' in tab.columns:
+        if in_var in tab.columns:
             tab = read_table(name)
-            id_tab = tab['id']
-            if all(hyg.bien_id.isin(id_tab)):
+            id_tab = tab[in_var]
+            if all(liste_valeurs.isin(id_tab)):
                 potentiel_match.append(name)
+    return potentiel_match
 
-    print(potentiel_match)
+def question_bien_id():
+    ''' On va regarder les id de toutes les tables et
+    selectionner celle qui contiennent les valeur de bien_id
+    '''
+    hyg = read_table('affhygiene')
+    liste_valeurs = hyg.bien_id
+    print(_recherche_valeur_in_id(liste_valeurs))
     # => ['ficherecolem']
 
 
@@ -129,13 +135,13 @@ def coherence_infractions():
 
 def coherence_arretehyautre_pvscp():
     ''' Question : quelle cohérence entre arretehyautre et pvscp ? '''
-    ## Ne marche pas !    
-    
+    ## Ne marche pas !
+
     arrete = read_table('arretehyautre')[['id', 'affaire_id','type_id']]
     arrete.rename(columns={'id': 'arrete_hygiene_id'}, inplace=True)
-        
+
     pvcsp = read_table('pvcsp')
-    
+
     ## Première vérification
     pvcsp_avec_arrete = pvcsp.merge(arrete,
                                     on='arrete_hygiene_id',
@@ -144,30 +150,29 @@ def coherence_arretehyautre_pvscp():
     # bcp moins de pvscp que d'arrete mais tous dedans.
     # supsicion : il n'y a que les arrêté en cours, les autres sont dans classés
     # sinon, il y a bien cohérence puisque les pvcsp renvoie à arrete
-    
+
     ## vérification des cohérences des affaires
     cr = read_table('cr_visite')
     cr = cr[['id', 'affaire_id']]
     cr.rename(columns={'id': 'compte_rendu_id'}, inplace=True)
-    
-    arrete_avec_cr = arrete.merge(cr, 
+
+    arrete_avec_cr = arrete.merge(cr,
                                        on='affaire_id',
-                                       how='left', 
+                                       how='left',
                                        indicator=True)
     # => 15 non match ? cf arrete_avec_cr._merge.value_counts()
-    
-                                       
+
+
     pvcsp_avec_cr = pvcsp.merge(cr,
                                 on='compte_rendu_id',
                                 how='left',
                                 indicator=True)
     # pvcsp_avec_cr._merge.value_counts()
-    
+
     affaires_pvscp =  pvcsp_avec_cr.affaire_id
     affaires_arrete = arrete_avec_cr.affaire_id
     assert all(affaires_pvscp.isin(affaires_arrete))
     assert not all(affaires_arrete.isin(affaires_pvscp))
-    # confirme la supsicion : 
+    # confirme la supsicion :
     # il n'y a dans pvcsp que les arrêté en cours,
     # les autres sont dans classés (table classement)
-    
