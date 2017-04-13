@@ -26,7 +26,7 @@ import pandas as pd
 
 from insalubrite.config_insal import path_bspp, path_output
 
-path_affaires = os.path.join(path_output, 'compterenduinsalubre_v0.csv')
+path_affaires = os.path.join(path_output, 'cr_avec_adresse_v0.csv')
 if not os.path.exists(path_affaires):
     import insalubrite.Sarah.affaires
 adresses_sarah = pd.read_csv(path_affaires)
@@ -34,20 +34,31 @@ adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
 sarah = adresses_sarah
 sarah.rename(columns={'id_adresse': 'result_id'}, inplace=True)
 
+assert all(sarah.isnull().sum() == 0)
+
 ###########################
 ###         BSPP        ###
 ###########################
 
-
-path_bspp = os.path.join(path_bspp, 'paris_ban.csv')
-if not os.path.exists(path_bspp):
+path_csv_bspp = os.path.join(path_bspp, 'paris_ban.csv')
+if not os.path.exists(path_csv_bspp):
     import insalubrite.bspp.read
-bspp = pd.read_csv(path_bspp)
+bspp = pd.read_csv(path_csv_bspp)
 
 ### Fusion des données
-test = sarah.merge(bspp, on='result_id', how='outer', indicator=True)
-test._merge.value_counts()
+bspp = bspp[bspp.result_id.isin(sarah.result_id)]
 
+# simplification => on ne tient pas compte de la date.
+# on utilise un nombre d'intervention par type
+bspp = pd.crosstab(bspp.result_id, bspp.Libelle_Motif)
+
+
+sarah_bspp = sarah.merge(bspp,
+                   left_on='result_id',
+                   right_index=True,
+                   how='left')
+
+sarah_bspp.fillna(0, inplace=True)
 
 
 ########################################
