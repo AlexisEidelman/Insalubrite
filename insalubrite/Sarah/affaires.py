@@ -13,32 +13,40 @@ from insalubrite.Sarah.adresse_de_l_affaire import adresse_par_affaires
 from insalubrite.config_insal import path_output
 
 cr_visite_brut = read_table('cr_visite')
-all_but_id = [x for x in cr_visite_brut.columns 
-    if x not in ['id', 'date_creation']
-    ]
-#cr_visite  = cr_visite_brut.drop_duplicates(subset=all_but_id) #à ne pas faire 
-    # parce que l'on perd des id et que l'on rate un merge plus loin
+
+## Vaine tentative de drop_duplicates
+#    all_but_id = [x for x in cr_visite_brut.columns
+#        if x not in ['id', 'date_creation']
+#        ]
+#    cr_visite  = cr_visite_brut.drop_duplicates(subset=all_but_id) #à ne pas faire
+#     parce que l'on perd des id et que l'on rate un merge plus loin
+
 cr_visite  = cr_visite_brut[['id', 'affaire_id', 'date']]
 len(cr_visite) ##=>49548 visites
 cr_visite.affaire_id.value_counts()
 cr_visite.affaire_id.nunique() #34122 affaires distinctes
-                              #avec n>=1 visites chacune
-cr_visite.date.nunique() ##=>4073 dates
+                               # avec n>=1 visites chacune
 
-cr_visite.date = pd.to_datetime(cr_visite.date, errors = 'coerce')
-##On passe de 85 valeurs non attribuées NaN à 88 valeurs de dates NaT
-#l = cr_visite_brut[pd.isnull(cr_visite_brut.date)].affaire_id
-#cr_visite_bad_dates = cr_visite[pd.isnull(cr_visite.date)]
-#l2 =  cr_visite_bad_dates.affaire_id
-#l2.isin(l).value_counts()
-#cr_visite_bad_dates2 = cr_visite_bad_dates[~l2.isin(l)]
-###=> 26232, 6837, 6480 sont les NaT rajoutés par to_datetime
-##Voyons un peu ce qui se passe
-#cr_visite_brut[cr_visite_brut.affaire_id.isin([26232, 6837, 6480])]
-#cr_visite_brut[['date','date_creation']].sample(60)
-#On conclut que les dates de ces affaires ont été mal écrites
-##De toute façon seules 5 affaires sur 34000 sont concernées
-#On transforme ces dates en NaT
+
+###  on a des problème de date
+pb_de_date = ['1000-10-16 00:00:00',
+              '0029-06-29 00:00:00',
+              '1010-04-06 00:00:00']
+
+# on regarde si date et date_creation correspondent
+# et c'est pareil dans la moitié des cas, très proche dans les autres
+# => on peut se dire qu'en cas de problème on prend date_creation à la
+# place de date
+#    date = cr_visite_brut['date'].str[:10]
+#    date_creation = cr_visite_brut['date_creation'].astype(str).str[:10]
+#    (date == date_creation).value_counts()
+
+cr_visite.loc[cr_visite['date'].isin(pb_de_date), 'date'] = \
+    cr_visite_brut.loc[cr_visite['date'].isin(pb_de_date), 'date_creation']
+cr_visite.loc[cr_visite['date'].isnull(), 'date'] = \
+    cr_visite_brut.loc[cr_visite['date'].isnull(), 'date_creation']
+
+cr_visite['date'] = pd.to_datetime(cr_visite['date'])
 
 
 # une affaire entraîne peut avoir plusieurs visites dans la journée
@@ -154,7 +162,7 @@ insalubre_first_infraction.groupby(['compterenduvisite_id']).size()
 
 
 del insalubre_first_infraction['id']
-compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction, 
+compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction,
                                          left_on = 'id',
                                          right_on = 'compterenduvisite_id',
                                          how = 'right')
@@ -162,7 +170,11 @@ compte_rendu_insalubre = cr_visite.merge(insalubre_first_infraction,
 compte_rendu_insalubre.loc[(compte_rendu_insalubre.affaire_id == 18828) &\
              (compte_rendu_insalubre.date =='2012-09-10 00:00:00')]
 
-affaires = adresse_par_affaires(compte_rendu_insalubre)                    
+compte_rendu_insalubre.drop(['libelle', 'articles'], axis=1, inplace=1)
 
 path_affaires = os.path.join(path_output, 'compterenduinsalubre_v0.csv')
+compte_rendu_insalubre.to_csv(path_affaires, encoding='utf8', index=False)
+
+path_affaires = os.path.join(path_output, 'cr_avec_adresse_v0.csv')
+affaires = adresse_par_affaires(compte_rendu_insalubre)
 affaires.to_csv(path_affaires, encoding='utf8', index=False)
