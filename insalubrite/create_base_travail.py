@@ -20,7 +20,6 @@ pour enrichir la base. Pour l'instant, on utilise:
 
 """
 
-
 import os
 import pandas as pd
 
@@ -28,7 +27,7 @@ from insalubrite.config_insal import path_bspp, path_output
 
 path_affaires = os.path.join(path_output, 'cr_avec_adresse_v0.csv')
 if not os.path.exists(path_affaires):
-    import insalubrite.Sarah.affaires
+    import insalubrite.Sarah.affaires_insalubres
 adresses_sarah = pd.read_csv(path_affaires)
 adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
 sarah = adresses_sarah
@@ -58,6 +57,7 @@ sarah_bspp = sarah.merge(bspp,
                    right_index=True,
                    how='left')
 
+xxxx
 sarah_bspp.fillna(0, inplace=True)
 
 
