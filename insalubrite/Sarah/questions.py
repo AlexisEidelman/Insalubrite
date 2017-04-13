@@ -36,7 +36,7 @@ def affaires_hyg_ou_raval():
     assert(all(affaire['id'].isin(liste_affaire)))
 
 
-def _recherche_valeurs_in_id(liste_valeurs, in_vars = ['id']):
+def _recherche_valeurs_in_id(liste_valeurs, in_vars = ['id'], verbose=False):
     ''' fonction utile pour la questions suivante
         elle cherche dans les tables si les id contiennent toutes les
         valeurs de liste_valeurs
@@ -56,12 +56,16 @@ def _recherche_valeurs_in_id(liste_valeurs, in_vars = ['id']):
             vars_a_etudier = [col for col in tab.columns if col[-3:] == '_id']
 
         if any([var in tab.columns for var in vars_a_etudier]):
+            if verbose:
+                print('table', name)
             tab = read_table(name)
-
+            
             for var in vars_a_etudier:
                 if var in tab.columns:
                     id_tab = tab[var]
                     if all(liste_valeurs.isin(id_tab)):
+                        if verbose:
+                            print(' matched pour', id_tab, '!!!')
                         if in_vars == '_id':
                             potentiel_match.append((name, var))
                         else:
