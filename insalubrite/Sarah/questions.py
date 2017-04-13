@@ -65,29 +65,37 @@ print(potentiel_match)
 ## infractionhisto pointe vers infraction qui pointe vers affaire
 ## On verifie la cohérence
 ####
-cr_visite_brut = read_table('cr_visite')
-cr_visite  = cr_visite_brut[['affaire_id', 'date']].drop_duplicates()
-infraction_brut = read_table('infraction')
+
 infractionhisto = read_table('infractionhisto')
-## infractionhisto pointe vers cr_visite qui pointe vers affaire: affaire_infraction
-## infractionhisto pointe vers infraction qui pointe vers affaire: affaire_crvisite
 
-#affaire_infraction: les affaires reliées à des infractions
-affaire_infraction = cr_visite_brut[\
-      cr_visite_brut.id.isin(infractionhisto.compterenduvisite_id)].affaire_id
-affaire_infraction = pd.Series(affaire_infraction.unique())
-#affaire_crvisite: les affaires liées à infractionhisto via cr_visite
-affaire_crvisite = infraction_brut[\
-            infraction_brut.id.isin(infractionhisto.infraction_id)].affaire_id
-affaire_crvisite = pd.Series(affaire_crvisite.unique())
+#Dans infractionhisto, la ligne d'indice 47206 correspond à
+#infraction_id = 28588 compterenduvisite_id = 46876 
+#ils doivent correspondre à la même affaire
 
-affaire_crvisite.isin(affaire_infraction).value_counts(dropna = False)
-#True     16937
-#False        1
-affaire_infraction.isin(affaire_crvisite).value_counts(dropna = False)
-#True     16937
-#False      125
-affhygiene = read_table('affhygiene')
+cr_visite_brut = read_table('cr_visite')
+infraction_brut = read_table('infraction')
+cr_visite_brut[cr_visite_brut.id == 46876].affaire_id
+infraction_brut[infraction_brut.id == 28588].affaire_id
+##=>True
+#Est-ce vrai pour toute ligne de infractionhisto?
+infractionhisto_avant_merge = infractionhisto[['infraction_id','compterenduvisite_id']]
+infractionhisto_avant_merge.drop_duplicates(inplace=True)
+infraction_visite = infractionhisto_avant_merge.merge(cr_visite_brut,
+                                                      left_on = 'compterenduvisite_id',
+                                                      right_on = 'id',
+                                                      how = 'left')
+infraction_affaire = infractionhisto_avant_merge.merge(infraction_brut,
+                                                       left_on = 'infraction_id',
+                                                       right_on = 'id',
+                                                       how = 'left')
+parinfraction = pd.Series(infraction_affaire.affaire_id.unique())
+parvisite = pd.Series(infraction_visite.affaire_id.unique())
+parinfraction.isin(parvisite).value_counts() ##=> True 16937, False 1
+parvisite.isin(parinfraction).value_counts() ##=> True 16937, False 125
 
-
-
+## Comprendre les 125 affaires liées à cr_visite mais pas cohérentes avec 
+## infraction
+cr_visite  = cr_visite_brut[['affaire_id', 'date']].drop_duplicates()
+incoherent_aff_id = parvisite[~parvisite.isin(parinfraction)]
+incoherent_visits = cr_visite.loc[cr_visite.affaire_id.isin(incoherent_aff_id)]
+incoherent_visits.groupby('affaire_id').size()
