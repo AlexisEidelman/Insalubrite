@@ -70,7 +70,7 @@ def parcelle():
 
     ilot = read_table('ilot')
     ilot.rename(columns = {'nsq_ia':'ilot_id'}, inplace = True)
-    parcelle_augmentee = parcelle_cadastrale.merge(ilot, on = 'ilot_id')
+    parcelle_augmentee = parcelle_cadastrale.merge(ilot, on='ilot_id', how='left')
 
 
     quartier_admin = read_table('quartier_admin')
@@ -78,19 +78,21 @@ def parcelle():
     quartier_admin.rename(columns = {'nsq_qu':'nqu',
                                      'tln': 'quartier_admin'}, inplace = True)
 
-    parcelle_augmentee = parcelle_augmentee.merge(quartier_admin, on='nqu')
+    parcelle_augmentee = parcelle_augmentee.merge(
+        quartier_admin, on='nqu', how='left')
 
 
     arrondissement = read_table('arrondissement')
     arrond = arrondissement[['id', 'codeinsee', 'codepostal', 'nomcommune']]
     arrond.rename(columns = {'id':'nsq_ca'}, inplace = True)
-    parcelle_augmentee = parcelle_augmentee.merge(arrond, on = 'nsq_ca')
+    parcelle_augmentee = parcelle_augmentee.merge(arrond, on='nsq_ca', how='left')
 
 
     parcelle_augmentee.drop(['nqu', 'nsq_ca'], axis=1, inplace=True)
+    parcelle_augmentee['ilot_id'].fillna(-1, inplace=True)
     parcelle_augmentee['numero_ilot'] = parcelle_augmentee['ilot_id'].astype(int)
     del parcelle_augmentee['ilot_id']
-    # on renomme ilot_id pour ne pas chercher d'autres ilot_id
+    # on renomme ilot_id pour ne pas chercher à fusionner encore par la suite
 
     return parcelle_augmentee
 
