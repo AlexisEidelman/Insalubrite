@@ -88,7 +88,9 @@ def parcelle():
 
 
     parcelle_augmentee.drop(['nqu', 'nsq_ca'], axis=1, inplace=True)
-    parcelle_augmentee['ilot_id'] = parcelle_augmentee['ilot_id'].astype(int)
+    parcelle_augmentee['numero_ilot'] = parcelle_augmentee['ilot_id'].astype(int)
+    del parcelle_augmentee['ilot_id']
+    # on renomme ilot_id pour ne pas chercher d'autres ilot_id
 
     return parcelle_augmentee
 
