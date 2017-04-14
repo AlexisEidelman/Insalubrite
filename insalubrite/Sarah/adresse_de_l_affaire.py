@@ -53,6 +53,46 @@ def signalement_des_affaires(table,
     return table_signalement
 
 
+def parcelle():
+    ''' travaille au niveau de la parcelle cadastrale et offre une
+        table propre
+    '''
+    print("75105 parcelle cadastralle répartis en 5031 ilots \n",
+          "eux-même répartis en 80 quarties administratifs \n",
+          "eux-même répartis en 20 arrondissements \n")
+
+
+    parcelle_cadastrale = read_table('parcelle_cadastrale')
+    parcelle_cadastrale.rename(columns = {'id':'parcelle_id'}, inplace = True)
+    # les variables non retenues n'ont pas d'intérêt
+    parcelle_cadastrale = parcelle_cadastrale[['parcelle_id','ilot_id',\
+                                               'code_cadastre']]
+
+    ilot = read_table('ilot')
+    ilot.rename(columns = {'nsq_ia':'ilot_id'}, inplace = True)
+    parcelle_augmentee = parcelle_cadastrale.merge(ilot, on = 'ilot_id')
+
+
+    quartier_admin = read_table('quartier_admin')
+    quartier_admin = quartier_admin[['nsq_qu', 'tln', 'nsq_ca']]
+    quartier_admin.rename(columns = {'nsq_qu':'nqu',
+                                     'tln': 'quartier_admin'}, inplace = True)
+
+    parcelle_augmentee = parcelle_augmentee.merge(quartier_admin, on='nqu')
+
+
+    arrondissement = read_table('arrondissement')
+    arrond = arrondissement[['id', 'codeinsee', 'codepostal', 'nomcommune']]
+    arrond.rename(columns = {'id':'nsq_ca'}, inplace = True)
+    parcelle_augmentee = parcelle_augmentee.merge(arrond, on = 'nsq_ca')
+
+
+    parcelle_augmentee.drop(['nqu', 'nsq_ca'], axis=1, inplace=True)
+    parcelle_augmentee['ilot_id'] = parcelle_augmentee['ilot_id'].astype(int)
+
+    return parcelle_augmentee
+
+
 def adresse_par_affaires(table, liste_var_signalement=None):
     ''' retrounes la table avec l'adresse correspondant à chaque affaire
         repérée par affaire_id
@@ -76,28 +116,7 @@ def adresse_par_affaires(table, liste_var_signalement=None):
         voie = voie[['voie_id','code_ville','libelle','nom_typo','type_voie']]
         adrbad_voie = pd.merge(voie, adrbad, on='voie_id')
 
-
-        arrondissement = read_table('arrondissement')
-        arrond = arrondissement[['id', 'codeinsee', 'codepostal', 'nomcommune']]
-        arrond.rename(columns = {'id':'nsq_ca'}, inplace = True)
-
-        quartier_admin = read_table('quartier_admin')
-
-        arrond_quartier = pd.merge(arrond, quartier_admin, on = 'nsq_ca')
-        arrond_quartier.rename(columns = {'nsq_qu':'nqu'}, inplace = True)
-
-        ilot = read_table('ilot')
-        ilot.rename(columns = {'nsq_ia':'ilot_id'}, inplace = True)
-        arrond_quartier_ilot = pd.merge(arrond_quartier, ilot, on = 'nqu')
-
-
-        parcelle_cadastrale = read_table('parcelle_cadastrale')
-        parcelle_cadastrale.rename(columns = {'id':'parcelle_id'}, inplace = True)
-        parcelle_cadastrale = parcelle_cadastrale[['parcelle_id','ilot_id',\
-                                                   'code_cadastre']]
-        #Merge parcelle_cadastrale with ilot on ilot_id
-        arrond_quartier_ilot = pd.merge(arrond_quartier_ilot,
-                                        parcelle_cadastrale, on = 'ilot_id')
+        arrond_quartier_ilot = parcelle()
 
         adrbad = pd.merge(adrbad_voie, arrond_quartier_ilot, on='parcelle_id')
 
@@ -135,6 +154,7 @@ def adresse_par_affaires(table, liste_var_signalement=None):
     adrsimple['libelle'] = adrsimple['libelle'].str.replace('  ', ' ')
     adrsimple.rename(columns = {'codepostal_adresse':'codepostal'}, inplace = True)
 
+    # TODO: utiliser parcelle_id
     adrsimple['code_cadastre'] = 'inconnu_car_source_adrsimple'
 
     ## étape 3.3 : rassemble adrbad et adrsimple
