@@ -20,7 +20,7 @@ from insalubrite.Sarah.read import read_table, read_sql
 infractionhisto = read_table('infractionhisto')
 
 #Dans infractionhisto, la ligne d'indice 47206 correspond à
-#infraction_id = 28588 compterenduvisite_id = 46876 
+#infraction_id = 28588 compterenduvisite_id = 46876
 #ils doivent correspondre à la même affaire
 
 cr_visite_brut = read_table('cr_visite')
@@ -44,7 +44,7 @@ parvisite = pd.Series(infraction_visite.affaire_id.unique())
 parinfraction.isin(parvisite).value_counts() ##=> True 16937, False 1
 parvisite.isin(parinfraction).value_counts() ##=> True 16937, False 125
 
-## Comprendre les 125 affaires liées à cr_visite mais pas cohérentes avec 
+## Comprendre les 125 affaires liées à cr_visite mais pas cohérentes avec
 ## infraction
 cr_visite  = cr_visite_brut[['affaire_id', 'date']].drop_duplicates()
 incoherent_aff_id = parvisite[~parvisite.isin(parinfraction)]
@@ -100,7 +100,7 @@ def _recherche_valeurs_in_id(liste_valeurs, in_vars = ['id'], verbose=False):
             if verbose:
                 print('table', name)
             tab = read_table(name)
-            
+
             for var in vars_a_etudier:
                 if var in tab.columns:
                     id_tab = tab[var]
@@ -122,6 +122,19 @@ def question_bien_id():
     liste_valeurs = hyg.bien_id
     print(_recherche_valeurs_in_id(liste_valeurs))
     # => ['ficherecolem']
+
+    # autre hypothèse bien_id se retrouve dans plusieurs tables !
+    immeuble = read_table('immeuble')
+    batiment = read_table('batiment')
+    parcelle = read_table('parcelle_cadastrale')
+    localhabite = read_table('localhabite')
+
+    tous_les_ids = immeuble.id.append(batiment.id).append(parcelle.id).append(localhabite.id)
+    assert all(tous_les_ids.value_counts() == 1)
+    assert all(liste_valeurs.isin(tous_les_ids))
+    # on a donc trouvé. On valide par le fait que les numéro sont dispersé dans les bases
+
+
 
 
 def signalement_des_affaires():
