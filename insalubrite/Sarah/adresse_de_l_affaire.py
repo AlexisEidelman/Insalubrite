@@ -97,48 +97,33 @@ def parcelle():
     return parcelle_augmentee
 
 
-def adresse_par_affaires(table, liste_var_signalement=None):
-    ''' retrounes la table avec l'adresse correspondant à chaque affaire
-        repérée par affaire_id
-        en éliminant les affaire_id qui ne sont pas dans signalement_affaire
-    '''
-    assert 'affaire_id' in table.columns
-
-    # étape 1 et 2: signalement affaire
-    table_signalement = signalement_des_affaires(table, liste_var_signalement)
-
+def toutes_adresses():
     # étape 3 : adrbad et adrsimple
     ## étape 3.1 : adrbad
-    def adrbad_complet():
-        adrbad = read_table('adrbad')
-        adrbad = adrbad[['adresse_id','parcelle_id','voie_id',
-                         'numero', 'suffixe1', 'suffixe2', 'suffixe3']]
 
-        # parenthèse: travail sur adrbad
-        voie = read_table('voie')
-        voie.rename(columns = {'id':'voie_id'}, inplace = True)
-        voie = voie[['voie_id','code_ville','libelle','nom_typo','type_voie']]
-        adrbad_voie = pd.merge(voie, adrbad, on='voie_id')
+    adrbad = read_table('adrbad')
+    adrbad = adrbad[['adresse_id','parcelle_id','voie_id',
+                     'numero', 'suffixe1', 'suffixe2', 'suffixe3']]
+    adrbad['numero'] = adrbad['numero'].fillna(-1).astype(int).astype(str)
+    adrbad['numero'].replace('-1', '', inplace=True)
 
-        arrond_quartier_ilot = parcelle()
-
-        adrbad = pd.merge(adrbad_voie, arrond_quartier_ilot, on='parcelle_id')
-
-        return adrbad
-
-
-    adrbad = adrbad_complet()
-    adrbad.drop(['libelle'], axis = 1, inplace = True)
-
-    assert 'libelle' not in adrbad.columns
     adrbad['suffixe1'].fillna('', inplace=True)
     adrbad['suffixe1'].replace(['b','t','q'], ['bis', 'ter', 'quater'], inplace=True)
+
+    voie = read_table('voie')
+    voie.rename(columns = {'id':'voie_id'}, inplace = True)
+    voie = voie[['voie_id','nom_typo',
+                 # 'type_voie'
+                 ]]
+
+    adrbad = pd.merge(voie, adrbad, on='voie_id', how='left')
+    del adrbad['voie_id']
 
     adrbad['libelle'] = adrbad['numero'].astype(str) + ' ' + \
         adrbad['suffixe1'] + ' ' + \
         adrbad['nom_typo'] + ', Paris'
     adrbad['libelle'] = adrbad['libelle'].str.replace('  ', ' ')
-
+    adrbad = adrbad[['adresse_id', 'parcelle_id', 'libelle']]
 
     ## étape 3.2 : adrsimple
     adrsimple = read_table('adrsimple')
@@ -151,18 +136,48 @@ def adresse_par_affaires(table, liste_var_signalement=None):
     adrsimple.loc[adrsimple['numero_adresse2'].isin(['bis', 'ter']), 'bis_ou_ter'] = \
         adrsimple.loc[adrsimple['numero_adresse2'].isin(['bis', 'ter']), 'numero_adresse2']
 
+    adrsimple['ville_adresse'].fillna('', inplace=True)
     adrsimple['libelle'] = adrsimple['numero_adresse1'] + ' ' + \
         adrsimple['bis_ou_ter'] + ' ' + \
-        adrsimple['libelle_adresse']
-
+        adrsimple['libelle_adresse'].str.lower()  + ', ' + \
+        adrsimple['ville_adresse'].str.lower()
     adrsimple['libelle'] = adrsimple['libelle'].str.replace('  ', ' ')
-    adrsimple.rename(columns = {'codepostal_adresse':'codepostal'}, inplace = True)
 
-    # TODO: utiliser parcelle_id
-    adrsimple['code_cadastre'] = 'inconnu_car_source_adrsimple'
+    adrsimple = adrsimple[['libelle', 'codepostal_adresse', 'parcelle_id',
+                           'adresse_id']]
+
 
     ## étape 3.3 : rassemble adrbad et adrsimple
     adresse = adrbad.append(adrsimple)
+    cadastre = parcelle()
+
+    adresse = pd.merge(adresse, cadastre, on='parcelle_id', how='left')
+
+    # TODO: unifier le code pos
+    adrsimple.rename(columns = {'codepostal_adresse':'codepostal'}, inplace = True)
+    adrsimple['code_cadastre'] = 'inconnu_car_source_adrsimple'
+    adresse.loc[adresse['codepostal'].isnull(), 'codepostal'] = \
+        adresse.loc[adresse['codepostal'].isnull(), 'codepostal_adresse']
+    del adresse['codepostal_adresse']
+
+
+    table_adresse = read_table('adresse')
+    adresse = table_adresse.merge(adresse, how='outer')
+    adresse = adresse[adresse['adresse_id'].notnull()]
+
+    return adresse
+
+
+def adresse_par_affaires(table, liste_var_signalement=None):
+    ''' retrounes la table avec l'adresse correspondant à chaque affaire
+        repérée par affaire_id
+        en éliminant les affaire_id qui ne sont pas dans signalement_affaire
+    '''
+    assert 'affaire_id' in table.columns
+
+    # étape 1 et 2: signalement affaire
+    table_signalement = signalement_des_affaires(table, liste_var_signalement)
+    adresse = toutes_adresses()
 
     ## étape 3.4 : fusionne table et adresse
     if 'libelle' in table_signalement.columns:
