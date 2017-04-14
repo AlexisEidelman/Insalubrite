@@ -2,6 +2,15 @@
 """
 Relie l'affaire à l'adresse
 
+Au depart, on passait par le signalement de l'affaire qui était
+relié à une adresse.
+Problème : beaucoup d'affaires n'ont pas de signalement.
+
+
+Finalement, la comprhénsion de la variable bien_id directement
+reliée à affygiène fait prendre une autre piste plus précise et
+plus compléte puisqu'on n'a plus le problème de signalement
+
 """
 import os
 import pandas as pd
