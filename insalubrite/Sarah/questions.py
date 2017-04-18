@@ -142,17 +142,35 @@ def signalement_des_affaires():
         on a beaucoup de raté, comment se fait-ce ?
     '''
     affaire = read_table('affaire')
+    affhyg = read_table('affhygiene')
     signalement_affaire = read_table('signalement_affaire')
-    test = pd.merge(affaire, signalement_affaire,
-                                         left_on='id',
-                                         right_on='affaire_id',
+    test = pd.merge(affhyg, signalement_affaire,
+                                         on='affaire_id',
                                          how='outer',
                                          indicator='provenance')
     #test.provenance.value_counts()
-    #both          30871
-    #left_only     27896
+    #both          30692
+    #left_only     10433
+    #right_only      179
     # => beaucoup d'affaire n'ont pas de signalement
-    id_affaires_sans_signalement = test.loc[test.provenance == 'left_only', 'id']
+    id_affaires_sans_signalement = test.loc[test.provenance == 'left_only',
+                                            'affaire_id']
+    id_affaires_sans_signalement.sort_values(inplace=True)
+    shift = id_affaires_sans_signalement - id_affaires_sans_signalement.shift(1)
+    # => 2/3 beaucoup d'écart de 1 comme si cela concernait des affaires proches
+    
+    
+    # exemple
+    # random = id_affaires_sans_signalement.iloc[5644] # = 5685
+    random = 5644
+    affaire_ids = id_affaires_sans_signalement.iloc[random-  5:random + 5]
+    
+    bien_id_correspondant = affhyg.loc[affhyg['affaire_id'].isin(affaire_ids)]
+    cr = read_table('cr_visite')
+    cr[cr['affaire_id'].isin(bien_id_correspondant['affaire_id'])]
+    
+    
+    ccc = cr[cr['affaire_id'].isin(id_affaires_sans_signalement)]
 
 
 def coherence_libelle_infractiontype():
