@@ -74,19 +74,6 @@ def adresses_via_signalement(table,
     return table_adresses
 
 
-def adresses_par_affaires(table, liste_var_signalement=None):
-
-    ## étape 3.5 : envoie à l'API
-    print("appel à l'api de  adresse.data.gouv.fr, cette opération peut prendre du temps")
-    table_ban = merge_df_to_ban(
-        table_adresses,
-        os.path.join(path_output, 'temp.csv'),
-        ['libelle', 'codepostal'],
-        name_postcode = 'codepostal'
-        )
-    return table_ban
-
-
 if __name__ == '__main__':
     ### éude des adresses
     #adresse = read_table('adresse')
