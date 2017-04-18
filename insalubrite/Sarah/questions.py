@@ -176,9 +176,6 @@ def coherence_affaires_histoinfractions():
      On verifie la cohérence
     '''
     infractionhisto = read_table('infractionhisto')
-    #Dans infractionhisto, la ligne d'indice 47206 correspond à
-    #infraction_id = 28588 compterenduvisite_id = 46876
-    #ils doivent correspondre à la même affaire
     cr_visite = read_table('cr_visite')
     cr_visite.rename(columns={'id':'compterenduvisite_id'}, inplace=True)
     infraction = read_table('infraction')
@@ -220,6 +217,39 @@ def coherence_affaires_histoinfractions():
     # on a 710 incohérences qui viennent de ce qu'on n'a pas d'affaire_id
     # pour absolument toutes les lignes de la table infraction.
     # => passer par cr_visite est plus sûr
+
+
+def coherence_infractions_histoinfractions():
+    '''
+    on regarde si les infractions sont dans histoinfraction et inversement
+    '''
+    infractionhisto = read_table('infractionhisto')
+    infraction = read_table('infraction')
+    infraction.rename(columns={'id':'infraction_id'}, inplace=True)
+
+    #Est-ce vrai pour toute ligne de infractionhisto?
+    infractionhisto = infractionhisto[['id', 'infraction_id',
+                                       'compterenduvisite_id']]
+    infractionhisto.rename(columns={'id':'infractionhisto_id'},
+                                       inplace=True)
+
+    test_coherence = infractionhisto.merge(infraction,
+                                      on = 'infraction_id',
+                                      how = 'outer',
+                                      indicator=True)
+
+    test_coherence._merge.value_counts()
+    problemes = test_coherence[test_coherence['_merge'] != 'both']
+    # TODO: comprendre pourquoi
+
+    # infraction est plus complet que infractionhisto
+    # A noter: on a plusieurs infractions histo avec la même infraction
+    # cela vient du fait que infractionhisto est lié au cr_visite donc
+    # quand plusieurs visites sont sur la même affaire, on utilise
+    # la même ligne apparait plusieurs fois (alors que c'est la même affaire)
+
+    # la table infraction est la plus complète au niveau affaire.
+
 
 
 def coherence_arretehyautre_pvscp():
