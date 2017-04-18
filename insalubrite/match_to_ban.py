@@ -13,6 +13,8 @@ import pandas as pd
 
 def csv_to_ban(path_csv, name_postcode=''):
     ''' On part du principe qu'on a le code postal'''
+    print("appel à l'api de  adresse.data.gouv.fr, cette opération peut prendre du temps")
+    
     data = {}
     if name_postcode:
         data = {
@@ -29,17 +31,19 @@ def merge_df_to_ban(tab, path_csv, var_to_send,
                              name_postcode, encode_utf8=False):
     '''retourne un DataFrame tab augmenté via
     https://adresse.data.gouv.fr/api-gestion'''
+    
     tab[var_to_send].to_csv(
         path_csv, index=False, encoding='utf8'
         )
     tab_ban = csv_to_ban(path_csv, name_postcode)
-    tab_ban = tab_ban[['result_label', 'result_score', 'result_id']]
+    tab_ban = tab_ban[['result_label', 'result_score', 'result_id', 'result_type']]
     tab_ban.set_index(tab.index, inplace=True)
 
-    tab.rename(columns = {
+    tab_ban.rename(columns = {
         'result_label':'adresse_ban',
-        'result_score': 'score_matching_adresse',
-        'result_id': 'id_adresse'
+        'result_score': 'adresse_ban_score',
+        'result_type': 'adresse_ban_type',
+        'result_id': 'adresse_ban_id',
         },
         inplace = True)
 
