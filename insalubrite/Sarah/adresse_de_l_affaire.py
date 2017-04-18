@@ -18,7 +18,7 @@ import pandas as pd
 from insalubrite.config_insal import path_output
 from insalubrite.Sarah.read import read_table
 
-from insalubrite.adresses import parcelles, adresses
+from insalubrite.Sarah.adresses import parcelles, adresses
 from insalubrite.match_to_ban import merge_df_to_ban
 
 
@@ -84,14 +84,6 @@ def adresses_par_affaires(table, liste_var_signalement=None):
         ['libelle', 'codepostal'],
         name_postcode = 'codepostal'
         )
-
-    table_ban.rename(columns = {
-        'result_label':'adresse_ban',
-        'result_score': 'score_matching_adresse',
-        'result_id': 'id_adresse'
-        },
-        inplace = True)
-
     return table_ban
 
 
@@ -104,4 +96,8 @@ if __name__ == '__main__':
     path_affaires = os.path.join(path_output, 'compterenduinsalubre_v0.csv')
     compterenduinsalubre = pd.read_csv(path_affaires, encoding='utf8')
 
-    adresses_final = adresse_par_affaires(compterenduinsalubre)
+    adresses_affaires = adresses_via_signalement(compterenduinsalubre)
+    adresses_final = merge_df_to_ban(adresses_affaires,
+                                     os.path.join(path_output, 'temp.csv'),
+                                     ['libelle', 'codepostal'],
+                                     name_postcode = 'codepostal')

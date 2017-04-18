@@ -16,9 +16,9 @@ def csv_to_ban(path_csv, name_postcode=''):
     data = {}
     if name_postcode:
         data = {
-            'postcode': name_postcode   
+            'postcode': name_postcode
             }
-    r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
+    r = requests.post('http://devapi-adresse.data.gouv.fr/search/csv/',
                       files = {'data': open(path_csv)},
                       json = data)
     print(r.status_code, r.reason)
@@ -27,14 +27,22 @@ def csv_to_ban(path_csv, name_postcode=''):
 
 def merge_df_to_ban(tab, path_csv, var_to_send,
                              name_postcode, encode_utf8=False):
-    '''retourne un DataFrame tab augmenté via 
+    '''retourne un DataFrame tab augmenté via
     https://adresse.data.gouv.fr/api-gestion'''
     tab[var_to_send].to_csv(
         path_csv, index=False, encoding='utf8'
-        )     
+        )
     tab_ban = csv_to_ban(path_csv, name_postcode)
     tab_ban = tab_ban[['result_label', 'result_score', 'result_id']]
     tab_ban.set_index(tab.index, inplace=True)
+
+    tab.rename(columns = {
+        'result_label':'adresse_ban',
+        'result_score': 'score_matching_adresse',
+        'result_id': 'id_adresse'
+        },
+        inplace = True)
+
     return tab.join(tab_ban)
 
 
