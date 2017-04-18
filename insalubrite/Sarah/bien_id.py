@@ -15,11 +15,12 @@ plus compléte puisqu'on n'a plus le problème de signalement
 
 """
 
+import os
 import numpy as np
 
 from insalubrite.Sarah.read import read_table
 from insalubrite.Sarah.adresses import parcelles, adresses
-
+from insalubrite.config_insal import path_output
 
 hyg = read_table('affhygiene')
 bien_ids = hyg.bien_id
@@ -108,7 +109,15 @@ bien_id_parcelle = hyg['bien_id_provenance'] == 'parcelle_cadastrale'
 hyg.loc[bien_id_parcelle, 'parcelle_id'] = hyg.loc[bien_id_parcelle, 'bien_id']
 hyg = hyg.merge(parcelle_cadastrale, on = 'parcelle_id', how='left')
 
-# TODO: reperendre les observations.
+hyg.rename(
+    columns={
+    'observations_x': 'observations_localhabite',
+    'observations_y': 'observations_batiment',
+    'observations': 'observations_immeuble',
+    },
+    inplace=True)
+
+
 
 ### dans immeuble il y a parcelle et adresse.
 # or adresse est lié à parcelle, il faut vérifier la cohérence
@@ -116,3 +125,6 @@ adresse = adresses()[['adresse_id', 'parcelle_id']]
 test = hyg[hyg.adresse_id.notnull()].merge(adresse, on='adresse_id', how='left', indicator=True)
 sum(test['parcelle_id_x'] != test['parcelle_id_y'])
 # 1 seule erreur
+
+path_adresses = os.path.join(path_output, 'adresses.csv')
+hyg.to_csv(path_adresses)
