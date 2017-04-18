@@ -20,45 +20,60 @@ pour enrichir la base. Pour l'instant, on utilise:
 
 """
 
+
 import os
 import pandas as pd
 
+from insalubrite.Sarah.read import read_table
+from insalubrite.Sarah.adresses import parcelles, adresses
+from insalubrite.Sarah.bien_id import adresse_via_bien_id
+from insalubrite.match_to_ban import merge_df_to_ban
+
 from insalubrite.config_insal import path_bspp, path_output
 
-path_affaires = os.path.join(path_output, 'cr_avec_adresse_v0.csv')
-if not os.path.exists(path_affaires):
-    import insalubrite.Sarah.affaires_insalubres
-adresses_sarah = pd.read_csv(path_affaires)
-adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
+
+def create_sarah_table():
+    hyg = read_table('affhygiene')
+    
+    cr = read_table('cr_visite')
+    hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
+    infraction = read_table('infraction')[['affaire_id', 'infractiontype_id']]
+    
+    infractiontype = read_table('infractiontype')
+    infractiontype.drop(['active', 'ordre'], axis=1, inplace=True)
+    infractiontype.rename(columns={'id': 'infractiontype_id',
+                                   'libelle': 'type_infraction'}, inplace=True)
+    
+    infraction = infraction.merge(infractiontype, on='infractiontype_id', how='left')    
+    
+    affaire = hyg.merge(infraction, on = 'affaire_id', how="left")
+    
+    
+    hyg_bien_id = adresse_via_bien_id(affaire)
+    
+    adresse = adresses()[['adresse_id', 'typeadresse', 'libelle']]
+    sarah = hyg_bien_id.merge(adresse, on = 'adresse_id',
+                              how = 'left')
+    sarah_adresse = sarah[sarah.adresse_id.notnull()]
+    
+    sarah_adresse = merge_df_to_ban(sarah_adresse,
+                             os.path.join(path_output, 'temp.csv'),
+                             ['libelle', 'codepostal'],
+                             name_postcode = 'codepostal')
+    
+    sarah = sarah_adresse.append(sarah[sarah.adresse_id.isnull()])
+    return sarah
+
+path_affaires = os.path.join(path_output, 'affaires_avec_adresse.csv')
+if os.path.exists(path_affaires):
+    adresses_sarah = pd.read_csv(path_affaires)
+else:
+    adresses_sarah = create_sarah_table()
+    adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
+
 sarah = adresses_sarah
-sarah.rename(columns={'id_adresse': 'result_id'}, inplace=True)
-
-assert all(sarah.isnull().sum() == 0)
-
-###########################
-###         BSPP        ###
-###########################
-
-path_csv_bspp = os.path.join(path_bspp, 'paris_ban.csv')
-if not os.path.exists(path_csv_bspp):
-    import insalubrite.bspp.read
-bspp = pd.read_csv(path_csv_bspp)
-
-### Fusion des données
-bspp = bspp[bspp.result_id.isin(sarah.result_id)]
-
-# simplification => on ne tient pas compte de la date.
-# on utilise un nombre d'intervention par type
-bspp = pd.crosstab(bspp.result_id, bspp.Libelle_Motif)
-
-
-sarah_bspp = sarah.merge(bspp,
-                   left_on='result_id',
-                   right_index=True,
-                   how='left')
-
-xxxx
-sarah_bspp.fillna(0, inplace=True)
+sarah.rename(columns={'adresse_ban_id': 'result_id'}, inplace=True) 
+#assert all(sarah.isnull().sum() == 0)
 
 
 ########################################
@@ -82,7 +97,6 @@ demandeurs['N_PC'] = code.str[7:].astype(int)
 parcelle = parcelle.merge(demandeurs,
                           on=['codeinsee', 'C_SEC', 'N_PC'],
                           how='outer', indicator=True)
-# right_only      350
 
 #prépare adresse_sarah_pour le match
 code = sarah['code_cadastre']
@@ -96,6 +110,43 @@ sarah._merge.value_counts()
 # => 134 non matché, est-ce une question de mise à jour ? test[test._merge == 'left_only']
 sarah.drop(['codeinsee', 'C_SEC', 'N_PC', 'code_cadastre', '_merge'],
            axis=1, inplace=True)
+
+
+# ici : on a finit avec le niveau parcelle
+# on continue avec le niveau logement mais c'est beaucoup moins bien défini
+# à cause de bien_id et de immeuble qui n'ont pas souvent de adresse_id
+# voir si le signalement ne doit pas être pris en compte pour en avoir plus
+
+sarah_parcelle = sarah.copy()
+
+sarah = sarah[sarah.adresse_id.notnull()]
+
+###########################
+###         BSPP        ###
+###########################
+
+path_csv_bspp = os.path.join(path_bspp, 'paris_ban.csv')
+if not os.path.exists(path_csv_bspp):
+    import insalubrite.bspp.read
+bspp = pd.read_csv(path_csv_bspp)
+
+### Fusion des données
+bspp = bspp[bspp.result_id.isin(sarah.result_id)]
+
+# simplification => on ne tient pas compte de la date.
+# on utilise un nombre d'intervention par type
+bspp = pd.crosstab(bspp.result_id, bspp.Libelle_Motif)
+bspp_columns =  bspp.columns
+
+sarah_bspp = sarah.merge(bspp,
+                   left_on='result_id',
+                   right_index=True,
+                   how='left')
+
+
+sarah_bspp[bspp_columns] = sarah_bspp[bspp_columns].fillna(0)
+
+
 
 ###########################
 ###      eau      ###
