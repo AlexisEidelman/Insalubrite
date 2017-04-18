@@ -88,9 +88,7 @@ def adresse_via_bien_id(table):
     # parcelle_cadastrale ok grace à parcelle()
     
     # on a pas mal d'adresse principale vide ?!
-    adresse = read_table('adresse')
     immeuble.rename(columns={'adresseprincipale_id': 'adresse_id'}, inplace=True)
-    immeuble = immeuble.merge(adresse, how='left')
     #=> on s'arrête là car toute la gestion des adresses est faire ailleurs
     # voir adresse_de_l_affaire
     
