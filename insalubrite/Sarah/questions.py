@@ -11,47 +11,6 @@ from insalubrite.config_insal import path_sarah
 from insalubrite.Sarah.read import read_table, read_sql
 
 
-####
-## infractionhisto pointe vers cr_visite qui pointe vers affaire
-## infractionhisto pointe vers infraction qui pointe vers affaire
-## On verifie la cohérence
-####
-
-infractionhisto = read_table('infractionhisto')
-
-#Dans infractionhisto, la ligne d'indice 47206 correspond à
-#infraction_id = 28588 compterenduvisite_id = 46876
-#ils doivent correspondre à la même affaire
-
-cr_visite_brut = read_table('cr_visite')
-infraction_brut = read_table('infraction')
-cr_visite_brut[cr_visite_brut.id == 46876].affaire_id
-infraction_brut[infraction_brut.id == 28588].affaire_id
-##=>True
-#Est-ce vrai pour toute ligne de infractionhisto?
-infractionhisto_avant_merge = infractionhisto[['infraction_id','compterenduvisite_id']]
-infractionhisto_avant_merge.drop_duplicates(inplace=True)
-infraction_visite = infractionhisto_avant_merge.merge(cr_visite_brut,
-                                                      left_on = 'compterenduvisite_id',
-                                                      right_on = 'id',
-                                                      how = 'left')
-infraction_affaire = infractionhisto_avant_merge.merge(infraction_brut,
-                                                       left_on = 'infraction_id',
-                                                       right_on = 'id',
-                                                       how = 'left')
-parinfraction = pd.Series(infraction_affaire.affaire_id.unique())
-parvisite = pd.Series(infraction_visite.affaire_id.unique())
-parinfraction.isin(parvisite).value_counts() ##=> True 16937, False 1
-parvisite.isin(parinfraction).value_counts() ##=> True 16937, False 125
-
-## Comprendre les 125 affaires liées à cr_visite mais pas cohérentes avec
-## infraction
-cr_visite  = cr_visite_brut[['affaire_id', 'date']].drop_duplicates()
-incoherent_aff_id = parvisite[~parvisite.isin(parinfraction)]
-incoherent_visits = cr_visite.loc[cr_visite.affaire_id.isin(incoherent_aff_id)]
-incoherent_visits.groupby('affaire_id').size()
-
-
 def affaires_hyg_ou_raval():
     '''
     On regarde si une affaire de la table affaire et ou bien dans
@@ -158,18 +117,18 @@ def signalement_des_affaires():
     id_affaires_sans_signalement.sort_values(inplace=True)
     shift = id_affaires_sans_signalement - id_affaires_sans_signalement.shift(1)
     # => 2/3 beaucoup d'écart de 1 comme si cela concernait des affaires proches
-    
-    
+
+
     # exemple
     # random = id_affaires_sans_signalement.iloc[5644] # = 5685
     random = 5644
     affaire_ids = id_affaires_sans_signalement.iloc[random-  5:random + 5]
-    
+
     bien_id_correspondant = affhyg.loc[affhyg['affaire_id'].isin(affaire_ids)]
     cr = read_table('cr_visite')
     cr[cr['affaire_id'].isin(bien_id_correspondant['affaire_id'])]
-    
-    
+
+
     ccc = cr[cr['affaire_id'].isin(id_affaires_sans_signalement)]
 
 
@@ -210,35 +169,57 @@ def coherence_libelle_infractiontype():
     infraction_histo.libelle.isin(infractiontype.libelle).value_counts()
 
 
-def coherence_infractions():
+def coherence_affaires_histoinfractions():
     '''
      infractionhisto pointe vers cr_visite qui pointe vers affaire
      infractionhisto pointe vers infraction qui pointe vers affaire
      On verifie la cohérence
     '''
-    cr_visite_brut = read_table('cr_visite')
-    cr_visite  = cr_visite_brut[['affaire_id', 'date']].drop_duplicates()
-    infraction_brut = read_table('infraction')
     infractionhisto = read_table('infractionhisto')
-    ## infractionhisto pointe vers cr_visite qui pointe vers affaire: affaire_infraction
-    ## infractionhisto pointe vers infraction qui pointe vers affaire: affaire_crvisite
+    #Dans infractionhisto, la ligne d'indice 47206 correspond à
+    #infraction_id = 28588 compterenduvisite_id = 46876
+    #ils doivent correspondre à la même affaire
+    cr_visite = read_table('cr_visite')
+    cr_visite.rename(columns={'id':'compterenduvisite_id'}, inplace=True)
+    infraction = read_table('infraction')
+    infraction.rename(columns={'id':'infraction_id'}, inplace=True)
 
-    #affaire_infraction: les affaires reliées à des infractions
-    affaire_infraction = cr_visite_brut[\
-          cr_visite_brut.id.isin(infractionhisto.compterenduvisite_id)].affaire_id
-    affaire_infraction = pd.Series(affaire_infraction.unique())
-    #affaire_crvisite: les affaires liées à infractionhisto via cr_visite
-    affaire_crvisite = infraction_brut[\
-                infraction_brut.id.isin(infractionhisto.infraction_id)].affaire_id
-    affaire_crvisite = pd.Series(affaire_crvisite.unique())
+    ##=>True
+    #Est-ce vrai pour toute ligne de infractionhisto?
+    infractionhisto = infractionhisto[['id', 'infraction_id',
+                                       'compterenduvisite_id']]
+    infractionhisto.rename(columns={'id':'infractionhisto_id'},
+                                       inplace=True)
+    infractionhisto.drop_duplicates(inplace=True)
 
-    affaire_crvisite.isin(affaire_infraction).value_counts(dropna = False)
-    #True     16937
-    #False        1
-    affaire_infraction.isin(affaire_crvisite).value_counts(dropna = False)
-    #True     16937
-    #False      125
-#    affhygiene = read_table('affhygiene')
+
+    via_table_cr_visite = infractionhisto.merge(cr_visite,
+                                              on = 'compterenduvisite_id',
+                                              how = 'left')
+
+    via_table_infraction = infractionhisto.merge(infraction,
+                                                 on = 'infraction_id',
+                                                 how = 'left',
+                                                 indicator='is_in_infraction')
+
+    infractionhisto.infraction_id.isin(infraction.infraction_id)
+
+    parinfraction = pd.Series(via_table_infraction.affaire_id.unique())
+    parvisite = pd.Series(via_table_cr_visite.affaire_id.unique())
+    parinfraction.isin(parvisite).value_counts() ##=> True 16937, False 1
+    parvisite.isin(parinfraction).value_counts() ##=> True 16937, False 125
+
+    test_coherence = via_table_infraction.merge(via_table_cr_visite,
+                                              on=['infractionhisto_id', 'affaire_id'],
+                                              how='outer',
+                                              indicator=True)
+
+    problemes = test_coherence[test_coherence['_merge'] != 'both']
+    test_coherence._merge.value_counts()
+    # Gloablement ça marche très bien. Pas d'incohérence.
+    # on a 710 incohérences qui viennent de ce qu'on n'a pas d'affaire_id
+    # pour absolument toutes les lignes de la table infraction.
+    # => passer par cr_visite est plus sûr
 
 
 def coherence_arretehyautre_pvscp():
@@ -284,4 +265,12 @@ def coherence_arretehyautre_pvscp():
     # confirme la supsicion :
     # il n'y a dans pvcsp que les arrêté en cours,
     # les autres sont dans classés (table classement)
+
+def plusieurs_infractions_reliees_a_une_meme_visite():
+    infractionhisto = read_table('infractionhisto')
+    infractionhisto.compterenduvisite_id.value_counts()
+    # pourquoi on a plusieurs infratction reliée à une même visite ?
+    # exemple infractionhisto[infractionhisto.compterenduvisite_id == 37955]
+    # TODO: voir avec le SI d'où ça peut venir
+    # => il peut y avoir plusieurs infractions constatées sur une même visite
 
