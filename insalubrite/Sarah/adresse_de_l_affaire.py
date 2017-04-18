@@ -17,9 +17,8 @@ import pandas as pd
 
 from insalubrite.config_insal import path_output
 from insalubrite.Sarah.read import read_table
-
 from insalubrite.match_to_ban import merge_df_to_ban
-
+from insalubrite.Sarah.affaires_insalubres import affaires_insalubres
 
 def signalement_des_affaires(table,
                              liste_var_signalement=None):
@@ -210,12 +209,5 @@ def adresse_par_affaires(table, liste_var_signalement=None):
 
 
 if __name__ == '__main__':
-    ### éude des adresses
-    #adresse = read_table('adresse')
-    # les adresses sont ou bien dans adrbad ou bien dans adrsimple
-
-    # Merge tables
-    path_affaires = os.path.join(path_output, 'compterenduinsalubre_v0.csv')
-    compterenduinsalubre = pd.read_csv(path_affaires, encoding='utf8')
-
+    compterenduinsalubre = affaires_insalubres()
     adresses_final = adresse_par_affaires(compterenduinsalubre)
