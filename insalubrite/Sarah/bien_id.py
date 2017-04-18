@@ -18,7 +18,7 @@ plus compléte puisqu'on n'a plus le problème de signalement
 import numpy as np
 
 from insalubrite.Sarah.read import read_table
-from insalubrite.Sarah.adresse_de_l_affaire import parcelle, toutes_adresses
+from insalubrite.Sarah.adresses import parcelles, adresses
 
 
 hyg = read_table('affhygiene')
@@ -60,7 +60,7 @@ que_des_2 = ['diagplomb', 'diagtermite', 'etudemql', 'grilleanah',
 immeuble.drop(que_des_2, axis=1, inplace=True)
 del immeuble['tournee_id'] # que 8 valeurs
 
-parcelle_cadastrale = parcelle()
+parcelle_cadastrale = parcelles()
 
 
 ### Travail sur les id et les fusions
@@ -112,7 +112,7 @@ hyg = hyg.merge(parcelle_cadastrale, on = 'parcelle_id', how='left')
 
 ### dans immeuble il y a parcelle et adresse.
 # or adresse est lié à parcelle, il faut vérifier la cohérence
-adresse = toutes_adresses()[['adresse_id', 'parcelle_id']]
+adresse = adresses()[['adresse_id', 'parcelle_id']]
 test = hyg[hyg.adresse_id.notnull()].merge(adresse, on='adresse_id', how='left', indicator=True)
 sum(test['parcelle_id_x'] != test['parcelle_id_y'])
 # 1 seule erreur
