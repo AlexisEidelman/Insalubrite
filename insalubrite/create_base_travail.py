@@ -65,22 +65,6 @@ def create_sarah_table():
     return sarah
 
 
-path_affaires = os.path.join(path_output, 'affaires_avec_adresse.csv')
-if os.path.exists(path_affaires):
-    adresses_sarah = pd.read_csv(path_affaires)
-else:
-    adresses_sarah = create_sarah_table()
-    adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
-
-sarah = adresses_sarah.copy()
-sarah.rename(columns={'adresse_ban_id': 'result_id'}, inplace=True)
-#assert all(sarah.isnull().sum() == 0)
-
-# NOTE:
-# on retire les 520 affaires sans parcelle cadastrale sur 46 000
-sarah = sarah[sarah['code_cadastre'].notnull()]
-# TODO: analyser le biais créée
-
 
 ########################################
 ###      Parcelle   et demandeurs    ###
@@ -88,123 +72,176 @@ sarah = sarah[sarah['code_cadastre'].notnull()]
 
 # on rejoint les deux car parcelle et demandeurs sont au niveau parcelle
 # cadastrale
-from insalubrite.Apur.parcelles import read_parcelle
-parcelle = read_parcelle(2015)
-parcelle.rename(columns={'C_CAINSEE': 'codeinsee'}, inplace=True)
+def infos_parcelles():
+    from insalubrite.Apur.parcelles import read_parcelle
+    parcelle = read_parcelle(2015)
+    parcelle.rename(columns={'C_CAINSEE': 'codeinsee'}, inplace=True)
+    
+    path_dem = os.path.join(path_output, 'demandeurs.csv')
+    demandeurs = pd.read_csv(path_dem)
+    # on ne garde qu'une valeur par ASP, celle la plus récente  
+    demandeurs = demandeurs[~demandeurs['ASP'].duplicated(keep='first')]
+    
+    code = demandeurs['ASP']
+    demandeurs['codeinsee'] = code.str[:3].astype(int) + 75100
+    assert all(demandeurs['codeinsee'].isin(parcelle.codeinsee))
+    demandeurs['C_SEC'] = code.str[4:6]
+    demandeurs['N_PC'] = code.str[7:].astype(int)
+    
+    parcelle_augmentee = parcelle.merge(demandeurs,
+                              on=['codeinsee', 'C_SEC', 'N_PC'],
+                              how='outer', indicator=True)
+    
+    pb = parcelle_augmentee[parcelle_augmentee['_merge'] == 'right_only']
+    
+    parcelle_augmentee = parcelle_augmentee[parcelle_augmentee['_merge'] != 'right_only']
+    del parcelle_augmentee['_merge']
 
-path_dem = os.path.join(path_output, 'demandeurs.csv')
-demandeurs = pd.read_csv(path_dem)
-code = demandeurs['ASP']
-demandeurs['codeinsee'] = code.str[:3].astype(int) + 75100
-assert all(demandeurs['codeinsee'].isin(parcelle.codeinsee))
-demandeurs['C_SEC'] = code.str[4:6]
-demandeurs['N_PC'] = code.str[7:].astype(int)
-
-parcelle = parcelle.merge(demandeurs,
-                          on=['codeinsee', 'C_SEC', 'N_PC'],
-                          how='outer', indicator=True)
-
-pb = parcelle[parcelle['_merge'] == 'right_only']
-del parcelle['_merge']
-
-#prépare adresse_sarah_pour le match
-code = sarah['code_cadastre']
-assert all(code.str[:5].astype(float) == sarah['codeinsee'])
-sarah['C_SEC'] = code.str[6:8]
-sarah['N_PC'] = code.str[8:].astype(int)
-
-sarah_parcelle = sarah.merge(parcelle, on=['codeinsee', 'C_SEC', 'N_PC'],
-                   how='left', indicator=True)
-sarah_parcelle._merge.value_counts()
-# 68 match raté
-
-# =>  non matché, est-ce une question de mise à jour ? sarah_parcelle[sarah_parcelle._merge == 'left_only']
-sarah_parcelle.drop(['codeinsee', 'C_SEC', 'N_PC', 'code_cadastre', '_merge'],
-           axis=1, inplace=True)
+    return parcelle_augmentee
 
 
-# ici : on a finit avec le niveau parcelle
-# on continue avec le niveau logement mais c'est beaucoup moins bien défini
-# à cause de bien_id et de immeuble qui n'ont pas souvent de adresse_id
-# voir si le signalement ne doit pas être pris en compte pour en avoir plus
+def add_infos_parcelles(table):
+    assert 'code_cadastre' in table.columns
+    assert table['code_cadastre'].notnull().all()
+    parcelle = infos_parcelles()
+    
+    #prépare table pour le match
+    code = table['code_cadastre']
+    assert all(code.str[:5].astype(float) == table['codeinsee'])
+    table['C_SEC'] = code.str[6:8]
+    table['N_PC'] = code.str[8:].astype(int)
+    
+    table_parcelle = table.merge(parcelle, on=['codeinsee', 'C_SEC', 'N_PC'],
+                       how='left', indicator=True)
+    table_parcelle._merge.value_counts()
+    # 68 match raté
+    # =>  non matché, est-ce une question de mise à jour ? table_parcelle[table_parcelle._merge == 'left_only']
+    
+    table_parcelle.drop(['codeinsee', 'C_SEC', 'N_PC', 'code_cadastre', '_merge'],
+               axis=1, inplace=True)
+    return table_parcelle
 
-sarah_adresse = sarah[sarah.adresse_id.notnull()]
-sarah = sarah_adresse
+
 
 ###########################
 ###         BSPP        ###
 ###########################
 
-path_csv_bspp = os.path.join(path_bspp, 'paris_ban.csv')
-if not os.path.exists(path_csv_bspp):
-    import insalubrite.bspp.read
-bspp = pd.read_csv(path_csv_bspp)
+def add_bspp(table):
+    path_csv_bspp = os.path.join(path_bspp, 'paris_ban.csv')
+    if not os.path.exists(path_csv_bspp):
+        import insalubrite.bspp.read
+    bspp = pd.read_csv(path_csv_bspp)
+    
+    ### Fusion des données
+    bspp = bspp[bspp.adresse_ban_id.isin(table.adresse_ban_id)]
+    
+    # simplification => on ne tient pas compte de la date.
+    # on utilise un nombre d'intervention par type
+    bspp = pd.crosstab(bspp.adresse_ban_id, bspp.Libelle_Motif)
+    bspp_columns =  bspp.columns
+    
+    table_bspp = table.merge(bspp,
+                       left_on='adresse_ban_id',
+                       right_index=True,
+                       how='outer',
+                       indicator='match_bspp')
+    assert all(table_bspp['match_bspp'] != 'right_only')
+    del table_bspp['match_bspp']
 
-### Fusion des données
-bspp = bspp[bspp.result_id.isin(sarah.result_id)]
+    table_bspp[bspp_columns] = table_bspp[bspp_columns].fillna(0)
+    return table_bspp
 
-# simplification => on ne tient pas compte de la date.
-# on utilise un nombre d'intervention par type
-bspp = pd.crosstab(bspp.result_id, bspp.Libelle_Motif)
-bspp_columns =  bspp.columns
-
-sarah_bspp = sarah.merge(bspp,
-                   left_on='result_id',
-                   right_index=True,
-                   how='outer',
-                   indicator='match_bspp')
-assert all(sarah_bspp['match_bspp'] != 'right_only')
-del sarah_bspp['match_bspp']
-
-sarah_bspp[bspp_columns] = sarah_bspp[bspp_columns].fillna(0)
-sarah = sarah_bspp
 
 ###########################
 ###      eau      ###
 ###########################
 
-path_eau = os.path.join(path_output, 'eau.csv')
-if not os.path.exists(path_eau):
-    import insalubrite.Apur.eau
-eau = pd.read_csv(path_eau)
-sarah_eau = sarah.merge(eau[['result_id', 'eau_annee_source']],
-                   how='outer',
-                   on='result_id',
-                   indicator='match_eau')
-sarah_eau['match_eau'].value_counts()
-
-sarah_eau['eau_annee_source'].value_counts(dropna=False)
-# on rate des adresses de eau  #TODO: étudier
-pb = sarah_eau[sarah_eau['match_eau'] == 'right_only']
-sarah = sarah_eau[sarah_eau['match_eau'] != 'right_only']
-#TODO: quelques nouveaux cas parce que des fusions
-
-# TODO: récupérer la date pour vérifier qu'on est avant la visite
+def add_eau(table):
+    path_eau = os.path.join(path_output, 'eau.csv')
+    if not os.path.exists(path_eau):
+        import insalubrite.Apur.eau
+    eau = pd.read_csv(path_eau)
+    table_eau = table.merge(eau[['adresse_ban_id', 'eau_annee_source']],
+                       how='outer',
+                       on='adresse_ban_id',
+                       indicator='match_eau')
+    table_eau['match_eau'].value_counts()
+    
+    table_eau['eau_annee_source'].value_counts(dropna=False)
+    # on rate des adresses de eau  #TODO: étudier
+    pb = table_eau[table_eau['match_eau'] == 'right_only']
+    #TODO: quelques nouveaux cas parce que des fusions
+    # TODO: récupérer la date pour vérifier qu'on est avant la visite
+    table_eau = table_eau[table_eau['match_eau'] != 'right_only']
+    del table_eau['match_eau']
+    return table_eau
 
 ###########################
 ###      saturnisme     ###
 ###########################
 
-# question métier : si le saturnisme est décelé après une première
-# viste d'insalubrité, alors le serpent se mord la queue :
-# on utilise le résultat pour prédire le résultat
-path_sat = os.path.join(path_output, 'sat.csv')
-if not os.path.exists(path_sat):
-    import insalubrite.Apur.saturnisme
-sat = pd.read_csv(path_sat)
-sat['Type_saturnisme'] = sat['Type'] # rename moche
-# Tous les cas, sont positifs, on a besoin d'en avoir un par result_id
-sat = sat[~sat['result_id'].duplicated(keep='last')]
+def add_saturnisme(table):
+    # question métier : si le saturnisme est décelé après une première
+    # viste d'insalubrité, alors le serpent se mord la queue :
+    # on utilise le résultat pour prédire le résultat
+    path_sat = os.path.join(path_output, 'sat.csv')
+    if not os.path.exists(path_sat):
+        import insalubrite.Apur.saturnisme
+    sat = pd.read_csv(path_sat)
+    sat['Type_saturnisme'] = sat['Type'] # rename moche
+    # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
+    sat = sat[~sat['adresse_ban_id'].duplicated(keep='last')]
+    
+    table_sat = table.merge(sat[['adresse_ban_id', 'sat_annee_source', 'Type_saturnisme']],
+                            on='adresse_ban_id',
+                            how='outer',
+                            indicator='match_sat')
 
-sarah_sat = sarah.merge(sat[['result_id', 'sat_annee_source', 'Type_saturnisme']],
-                        on='result_id',
-                        how='outer',
-                        indicator='match_sat')
+    table_sat['sat_annee_source'].value_counts(dropna=False)
+    # on rate des adresses de sat  #TODO: étudier
+    # TODO: récupérer la date
+    # TODO: récupérer la date pour vérifier qu'on est avant la visite
+    
+    table_sat = table_sat[table_sat['match_sat'] != "right_only"]
+    del table_sat['match_sat']
+    return table_sat
 
-sarah = sarah_sat[sarah_sat['match_sat'] != "right_only"]
-sarah['sat_annee_source'].value_counts(dropna=False)
-# on rate des adresses de sat  #TODO: étudier
-# TODO: récupérer la date
-# TODO: récupérer la date pour vérifier qu'on est avant la visite
 
+if __name__ == '__main__':
+    path_affaires = os.path.join(path_output, 'affaires_avec_adresse.csv')
+    if os.path.exists(path_affaires):
+        adresses_sarah = pd.read_csv(path_affaires)
+    else:
+        adresses_sarah = create_sarah_table()
+        adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
+    
+    sarah = adresses_sarah.copy()
+    # on retire les 520 affaires sans parcelle cadastrale sur 46 000
+    sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
+    sarah_augmentee_parcelle = sarah[['affaire_id', 'code_cadastre',
+                                      'codeinsee',
+                                      'infractiontype_id', 'titre']]
+    sarah_augmentee_parcelle = add_infos_parcelles(sarah_augmentee_parcelle)
+    
+    path_output_parcelle = os.path.join(path_output, 'niveau_parcelles.csv')
+    sarah_augmentee_parcelle.to_csv(path_output_parcelle, index=False,
+                                    encoding="utf8")
+    
+    # ici : on a finit avec le niveau parcelle
+    # on continue avec le niveau logement mais c'est beaucoup moins bien défini
+    # à cause de bien_id et de immeuble qui n'ont pas souvent de adresse_id
+    # voir si le signalement ne doit pas être pris en compte pour en avoir plus
+
+    sarah_adresse = sarah[sarah['adresse_id'].notnull()]
+    sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
+                                   'infractiontype_id', 'titre']]
+    sarah_augmentee_adresses = add_bspp(sarah_adresse)
+    sarah_augmentee_adresses = add_eau(sarah_augmentee_adresses)
+    sarah_augmentee_adresses = add_saturnisme(sarah_augmentee_adresses)
+    
+    path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
+    sarah_augmentee_adresses.to_csv(path_output_adresse, index=False,
+                                    encoding="utf8")   
+                                    
 
