@@ -26,12 +26,13 @@ dem_2015 = dem_2015.iloc[:-1] #la derniere ligne c'est le total
 
 assert all(dem_2015.columns == dem_2014.columns)
 dem = dem_2014.append(dem_2015)
-dem.reset_index(inplace=True)
 
 explications = pd.read_excel(path_dem_2015, sheetname='t_occ')
 
 traduction = explications.set_index("Code du mode d'occupation")["Libellé du mode d'occupation"].to_dict()
-dem.rename(columns=traduction)
+dem.rename(columns=traduction, inplace=True)
+
 
 path_dem = os.path.join(path_output, 'demandeurs.csv')
-dem.to_csv(path_dem, index=False)
+
+dem.to_csv(path_dem, index=False, encoding='utf8')

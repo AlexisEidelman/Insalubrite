@@ -49,4 +49,4 @@ eau_ban = merge_df_to_ban(
 #TODO: regarder les erreurs de match
 
 path_eau = os.path.join(path_output, 'eau.csv')
-eau_ban.to_csv(path_eau, index=False)
+eau_ban.to_csv(path_eau, index=False, encoding='utf8')
