@@ -11,9 +11,28 @@ library(VGAM)
 data = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/base.csv")
 data_parcelle = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_parcelles.csv")
 data_adresse = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_adresses.csv")
-levels(data$possedecaves)
+
+data$indic <- duplicated(data$affaire_id)
+data <- subset(data, data$indic == "FALSE")
+
+data_adresse$indic <- duplicated(data_adresse$affaire_id)
+data_adresse <- subset(data_adresse, data_adresse$indic == "FALSE")
+
+data_parcelle$indic <- duplicated(data_parcelle$affaire_id)
+data_parcelle <- subset(data_parcelle, data$indic == "FALSE")
+
+data <- merge(data,data_adresse,by="affaire_id",all.x = TRUE)
+data <- unique(data)
+
+data <- merge.data.frame(data, data_parcelle, by="affaire_id",all.x = TRUE)
+data$indic <- duplicated(data$affaire_id)
+data <- subset(data, data$indic == "FALSE")
 
 #Création de la variable indicatrice insalubre
+levels(data$possedecaves) <- c("0","0","1")
+levels(data$copropriete) <- factor(data$copropriete)
+levels(data$copropriete) <- c("0","1")
+levels(data$parties_cummunes) <- c("0","1")
 
 data$insalubre <- data$infractiontype_id
 data$gardien <- data$insalubre
@@ -35,24 +54,24 @@ for(k in 1:n){
   }
 }
 
-data$niveau <- data$infractiontype_id
+data$risque <- data$infractiontype_id
 
 for(k in 1:n){
   if(data$articles[k]!=""){
-    data$niveau[k] <- 2
+    data$risque[k] <- 2
   }
   
   if(data$articles[k]==""){
-    data$niveau[k] <- 1
+    data$risque[k] <- 1
   }
   
   if(data$insalubre[k]==0){
-    data$niveau[k] <- 0
+    data$risque[k] <- 0
   }
   
 }
 
-data$niveau <- factor(data$niveau)
+data$risque <- factor(data$risque)
 summary(data)
 data$codepostal<- factor(data$codepostal)
 
@@ -76,19 +95,29 @@ plot(data1$quartier_admin)
 
 data$possedecaves <- factor(data$possedecaves)
 
-#levels(data$codepostal)<-1:20
 tab <- table(data$codepostal,data$niveau)
 mosaicplot(tab)
 stargazer(tab)
 chisq.test(data$quartier_admin,data$niveau)
 chisq.test(data$codepostal,data$niveau)
 
-fit <- aov(niveau ~ codepostal, data=data) # y est la variable numérique et A indique les groupes
+fit <- aov(risque ~ codepostal, data=data) # y est la variable numérique et A indique les groupes
 summary(fit)
+
+data$Assechement.de.locaux <- factor(data$Assechement.de.locaux)
+data$Chaudiere.surchauffee <- factor(data$Chaudiere.surchauffee)
+data$Court.circuit <- factor(data$Court.circuit)
+data$Debouchage.d.egout.ou.de.canalisation <- factor(data$Debouchage.d.egout.ou.de.canalisation)
+data$Eboulement..effondrement <- factor(data$Eboulement..effondrement)
+data$Feu.appel.douteux <- factor(data$Feu.appel.douteux)
+data$Feu.ayant.existe <- factor(data$Feu.ayant.existe)
+data$Feu.de....<-factor(data$Feu.de....)
+data$Feu.de.cheminee <- factor(data$Feu.de....)
+data$Fuite.d.eau <- factor(data$Fuite.d.eau)
 
 
 #Binaire catégorielle
-datareg <- data[c("niveau","insalubre","copropriete","codepostal","parties_cummunes","possedecaves","gardien")]
+datareg <- data[c("risque","insalubre","copropriete","codepostal","parties_cummunes","possedecaves","gardien")]
 datareg$codepostal <- relevel(data$codepostal, ref="75018")
 
 logit = glm(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves+ gardien, family=binomial(link=logit),datareg)
@@ -102,7 +131,7 @@ stargazer(logit)
 
 #Polytomique
 
-logit=vglm(niveau~copropriete + codepostal + parties_cummunes + possedecaves+ gardien,family = multinomial ,data=datareg)
+logit=vglm(risque~copropriete + codepostal + parties_cummunes + possedecaves+ gardien,family = multinomial ,data=datareg)
 summary(logit)
 
 data_ACM <- data[c("titre","codepostal")]
