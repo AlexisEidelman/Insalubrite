@@ -1,0 +1,169 @@
+library(foreign)
+library(questionr)
+library(ggplot2)
+library(scales)
+library(stargazer)
+library(mfx)
+library(FactoMineR)
+library(pscl)
+library(MASS)
+library(VGAM)
+data = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/base.csv")
+data_parcelle = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_parcelles.csv")
+data_adresse = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_adresses.csv")
+levels(data$possedecaves)
+
+#Création de la variable indicatrice insalubre
+
+data$insalubre <- data$infractiontype_id
+data$gardien <- data$insalubre
+
+n <- length(data$insalubre)
+
+for(k in 1:n){
+  if(!is.na(data$insalubre[k])){
+    data$insalubre[k] <- 1
+  }
+  if(is.na(data$insalubre[k])){
+    data$insalubre[k] <- 0
+  }
+  if(data$mode_entree_batiment[k]=="Gardien"){
+    data$gardien[k] <- 1
+  }
+  if(data$mode_entree_batiment[k]!="Gardien" ){
+    data$gardien[k] <- 0
+  }
+}
+
+data$niveau <- data$infractiontype_id
+
+for(k in 1:n){
+  if(data$articles[k]!=""){
+    data$niveau[k] <- 2
+  }
+  
+  if(data$articles[k]==""){
+    data$niveau[k] <- 1
+  }
+  
+  if(data$insalubre[k]==0){
+    data$niveau[k] <- 0
+  }
+  
+}
+
+data$niveau <- factor(data$niveau)
+summary(data)
+data$codepostal<- factor(data$codepostal)
+
+levels(data$titre) <- c("","éclairage","éclairage","équipement","éclairage","décence","eau","eau","électricité","eau","eau","fenêtres","couverture","humidité","humidité","infiltration","infiltration","animaux","éclairage","","localisation","localisation","sale","sale","animaux","eau","équipement","animaux","sols/murs","sols/murs","sale","surface","équipement")
+levels(data$titre)
+summary(data$titre)
+plot(data$titre)
+summary(data$articles)
+
+summary(data$codepostal)
+plot(data$codepostal, col="blue")
+
+data1 <- subset(data, data$insalubre ==1)
+data1 <- subset(data1,data1$codepostal=="75010")
+data1$quartier_admin <- factor(data1$quartier_admin)
+data2 <- subset(data, data$insalubre ==0)
+plot(data1$codepostal, col="red")
+plot(data2$codepostal, col="green")
+
+plot(data1$quartier_admin)
+
+data$possedecaves <- factor(data$possedecaves)
+
+#levels(data$codepostal)<-1:20
+tab <- table(data$codepostal,data$niveau)
+mosaicplot(tab)
+stargazer(tab)
+chisq.test(data$quartier_admin,data$niveau)
+chisq.test(data$codepostal,data$niveau)
+
+fit <- aov(niveau ~ codepostal, data=data) # y est la variable numérique et A indique les groupes
+summary(fit)
+
+
+#Binaire catégorielle
+datareg <- data[c("niveau","insalubre","copropriete","codepostal","parties_cummunes","possedecaves","gardien")]
+datareg$codepostal <- relevel(data$codepostal, ref="75018")
+
+logit = glm(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves+ gardien, family=binomial(link=logit),datareg)
+probit = glm(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves+ gardien, family=binomial(link=probit),datareg)
+summary(logit)
+summary(probit)
+pR2(logit)
+pR2(probit)
+logitmfx(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves+ gardien, datareg, robust=TRUE)
+stargazer(logit)
+
+#Polytomique
+
+logit=vglm(niveau~copropriete + codepostal + parties_cummunes + possedecaves+ gardien,family = multinomial ,data=datareg)
+summary(logit)
+
+data_ACM <- data[c("titre","codepostal")]
+
+ACM = function(data,n){
+  res = MCA(data, ncp = n, graph = TRUE)
+  barplot(res$eig[, 2], main= "Histogramme des valeurs propres", names.arg=rownames(res$eig), xlab= "Axes", ylab= "Pourcentage d’inertie", cex.axis=0.8, font.lab=3, col= "orange")
+  #plot.MCA(res, choix = "var")
+  summary(res)
+}
+
+ACM(data_ACM,2)
+
+#Reg
+
+levels(data$codepostal) <- c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
+data$codepostal <- as.numeric(data$codepostal)
+data$possedecaves <- as.numeric(data$possedecaves)
+levels(data$parties_cummunes) <- c(0,1)
+data$parties_cummunes <- as.numeric(data$parties_cummunes)
+
+datareg <- data[c("insalubre","copropriete","codepostal","parties_cummunes","possedecaves")]
+datareg <- na.omit(datareg)
+reg1 <- lm(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves, data=datareg)
+summary(reg1)
+
+#Tests
+residu<-residuals(reg1)
+residu2 <- residu**2
+regpagan <- lm(residu2~ datareg$copropriete + datareg$codepostal + datareg$parties_cummunes + datareg$possedecaves)
+summary(regpagan)
+
+#FGLS
+
+logresidu2 <- log(residu2)
+varest <- lm(logresidu2~ datareg$copropriete + datareg$codepostal + datareg$parties_cummunes + datareg$possedecaves)
+summary(varest)
+
+datareg$sdi <- exp(-0.5*fitted.values(varest))
+datareg$insalubre <- datareg$insalubre*datareg$sdi
+datareg$copropriete <- datareg$copropriete*datareg$sdi
+datareg$codepostal <- datareg$codepostal*datareg$sdi
+datareg$parties_cummunes <- datareg$parties_cummunes*datareg$sdi
+datareg$possedecaves <- datareg$possedecaves*datareg$sdi
+
+FGLS <- lm(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves, data=datareg)
+summary(FGLS)
+summary(reg1)
+
+stargazer(FGLS)
+stargazer(reg1)
+
+#Binaire
+
+datareg <- data[c("insalubre","copropriete","codepostal","parties_cummunes","possedecaves","gardien")]
+
+logit = glm(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves+ gardien, family=binomial(link=logit),datareg)
+probit = glm(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves+ gardien, family=binomial(link=probit),datareg)
+summary(logit)
+summary(probit)
+pR2(logit)
+pR2(probit)
+logitmfx(insalubre ~ copropriete + codepostal + parties_cummunes + possedecaves+ gardien, datareg, robust=TRUE)
+stargazer(logit)
