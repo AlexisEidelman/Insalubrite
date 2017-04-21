@@ -8,7 +8,6 @@ import pandas as pd
 import os
 
 from insalubrite.Sarah.read import read_table
-from insalubrite.Sarah.adresse_de_l_affaire import adresse_par_affaires
 from insalubrite.config_insal import path_output
 
 
