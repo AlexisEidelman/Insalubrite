@@ -142,3 +142,5 @@ $RECYCLE.BIN/
 !/insalubrite/Sarah/links.csv
 !/insalubrite/Sarah/value_counts.csv
 insalubrite/config_insal.py
+.Rproj.user
+Insalubrite.Rproj
