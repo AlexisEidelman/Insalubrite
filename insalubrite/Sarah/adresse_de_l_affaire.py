@@ -81,37 +81,36 @@ def adresse_max(table):
     
     #merge table avec adresses venant de bien_id
     table_bien_id = adresse_via_bien_id(table)
-    table_bien_id = table_bien_id.groupby('affaire_id').first().reset_index()
     
     #merge table avec adresses venant de signalement
     table_signalement = adresses_via_signalement(table)
-    table_signalement = table_signalement.groupby('affaire_id').first().reset_index()
     table_signalement.drop(['signalement_id','merge_signalement'],
                            axis = 1,
                            inplace = True)
 
     
     var_to_merge_on = table.columns.to_series().tolist()
-    a = table_signalement.merge(table_bien_id, 
+    table_adresses_max = table_signalement.merge(table_bien_id, 
                                 on = var_to_merge_on,
                                 how='left',
                                 suffixes=('_sign','_bien'),
                                 )  
-    #a.adresse_id_bien.value_counts(dropna=False)
-    ##=> NaN 21629, reste 12493
-    #a.adresse_id_sign.value_counts(dropna=False)
-    ##=> NaN 9809, reste 24313
-    #(a.adresse_id_bien == a.adresse_id_sign).value_counts(dropna = False)
-    ##=>False 27687, True 6435
+    #table_adresses_max.adresse_id_bien.value_counts(dropna=False)
+    ##=> NaN 30832, reste 21843
+    #table_adresses_max.adresse_id_sign.value_counts(dropna=False)
+    ##=> NaN 14339, reste 38336
+    (table_adresses_max.adresse_id_bien == \
+               table_adresses_max.adresse_id_sign).value_counts(dropna = False)
+    ##=>False 40568, True 12107
     
     #Idée: Construire une colonne adresse_id avec adresse_id_sign quand ça 
     # existe et sinon adresse_id_bien
-    a['adresse_id'] = a['adresse_id_sign']
-    no_adresse_signalement = a.adresse_id_sign.isnull()
-    a.loc[no_adresse_signalement, 'adresse_id'] = a.loc[no_adresse_signalement, 
-                                                        'adresse_id_bien' ] 
+    table_adresses_max['adresse_id'] = table_adresses_max['adresse_id_sign']
+    no_adresse_signalement = table_adresses_max.adresse_id_sign.isnull()
+    table_adresses_max.loc[no_adresse_signalement, 'adresse_id'] = \
+            table_adresses_max.loc[no_adresse_signalement, 'adresse_id_bien' ] 
     
-    return a
+    return table_adresses_max
     
 if __name__ == '__main__':
     hyg = read_table('affhygiene')
