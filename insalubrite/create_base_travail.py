@@ -117,6 +117,7 @@ def infos_parcelles():
     parcelle_augmentee = parcelle_augmentee[parcelle_augmentee['_merge'] != 'right_only']
     del parcelle_augmentee['_merge']
 
+    parcelle_augmentee['hotel meublé'].fillna(False, inplace=True)
     return parcelle_augmentee
 
 
@@ -239,6 +240,7 @@ def add_saturnisme(table):
     table_sat = table_sat[table_sat['match_sat'] != "right_only"]
     del table_sat['match_sat']
     return table_sat
+
 
 
 
