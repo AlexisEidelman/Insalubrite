@@ -83,6 +83,11 @@ def create_sarah_table():
 # on rejoint les deux car parcelle et demandeurs sont au niveau parcelle
 # cadastrale
 
+def _create_ASP(tab):
+    ASP1 = tab['codeinsee'].astype(str).str[3:5].str.zfill(3)
+    ASP2 = tab['C_SEC']
+    ASP3 = tab['N_PC'].astype(str).str.zfill(4)
+    return ASP1 + '-' + ASP2 + '-' + ASP3
 
 def infos_parcelles():
     from insalubrite.Apur.parcelles import read_parcelle
@@ -100,7 +105,11 @@ def infos_parcelles():
     #                  de niveau 1 qui correspond à un groupe de niveau 0
     parcelle.drop(['C_PDNIV0', 'C_PDNIV1', 'C_PDNIV2'], axis=1,
                   inplace=True)
+    
+    parcelle['ASP'] = _create_ASP(parcelle)
+    parcelle.drop(['C_SEC', 'N_PC'], axis=1, inplace=True)  
 
+    # demandeur
     path_dem = os.path.join(path_output, 'demandeurs.csv')
     demandeurs = pd.read_csv(path_dem)
     # on ne garde qu'une valeur par ASP, celle la plus récente
@@ -114,17 +123,12 @@ def infos_parcelles():
 
     augmentation = hm.merge(demandeurs, on='ASP', how='outer')
 
-    code = augmentation['ASP'] # Arrondissement Section Parcelle
-    augmentation['codeinsee'] = code.str[:3].astype(int) + 75100
-    assert all(augmentation['codeinsee'].isin(parcelle.codeinsee))
-    augmentation['C_SEC'] = code.str[4:6]
-    augmentation['N_PC'] = code.str[7:].astype(int)
-
     parcelle_augmentee = parcelle.merge(augmentation,
-                              on=['codeinsee', 'C_SEC', 'N_PC'],
+                              on=['ASP'],
                               how='outer', indicator=True)
 
     pb = parcelle_augmentee[parcelle_augmentee['_merge'] == 'right_only']
+    # 292 erreurs
 
     parcelle_augmentee = parcelle_augmentee[parcelle_augmentee['_merge'] != 'right_only']
     del parcelle_augmentee['_merge']
@@ -137,24 +141,24 @@ def infos_parcelles():
 def add_infos_parcelles(table):
     assert 'code_cadastre' in table.columns
     assert table['code_cadastre'].notnull().all()
+    
     parcelle = infos_parcelles()
 
     #prépare table pour le match
     code = table['code_cadastre']
-    assert all(code.str[:5].astype(float) == table['codeinsee'])
-    table['C_SEC'] = code.str[6:8]
-    table['N_PC'] = code.str[8:].astype(int)
+    table.loc['ASP'] = '0' + code.str[3:5] + '-' + code.str[6:8] + '-' + code.str[8:]
 
-    table_parcelle = table.merge(parcelle, on=['codeinsee', 'C_SEC', 'N_PC'],
+    table_parcelle = table.merge(parcelle, on=['ASP'],
                        how='left', indicator=True)
     table_parcelle._merge.value_counts()
-    # 68 match raté
+    # 188 match raté
     # =>  non matché, est-ce une question de mise à jour ? table_parcelle[table_parcelle._merge == 'left_only']
 
-    table_parcelle.drop(['codeinsee', 'C_SEC', 'N_PC', 'code_cadastre', '_merge'],
+    table_parcelle.drop(['_merge', 'ASP',
+                         #, 'code_cadastre',
+                         ],
                axis=1, inplace=True)
     return table_parcelle
-
 
 
 ###########################
@@ -265,7 +269,8 @@ if __name__ == '__main__':
 
     sarah = data_sarah.copy()
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
-    sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple'] # TODO: analyser le biais créée
+    sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple'] 
+    sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
     sarah_augmentee_parcelle = sarah[['affaire_id', 'code_cadastre',
                                       'codeinsee',
                                       'infractiontype_id', 'titre']]
