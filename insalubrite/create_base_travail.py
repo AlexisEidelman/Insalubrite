@@ -282,7 +282,8 @@ if __name__ == '__main__':
 
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
     sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
-                                   'infractiontype_id', 'titre']]
+                                   'infractiontype_id', 'titre',
+                                   'code_cadastre']]
     sarah_augmentee_adresses = add_bspp(sarah_adresse)
     sarah_augmentee_adresses = add_eau(sarah_augmentee_adresses)
     sarah_augmentee_adresses = add_saturnisme(sarah_augmentee_adresses)
