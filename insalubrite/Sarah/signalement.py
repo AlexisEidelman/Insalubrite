@@ -25,7 +25,8 @@ from insalubrite.match_to_ban import merge_df_to_ban
 
 
 def adresses_via_signalement(table,
-                             liste_var_signalement=None):
+                             liste_var_signalement=None,
+                             prevent_duplicates=True):
     '''
     Trouve l'adresse d'une affaire en utilisant le signalement
     La fonction utilise une table contenant une variable affaire_id
@@ -36,19 +37,10 @@ def adresses_via_signalement(table,
     '''
     assert 'affaire_id' in table.columns
 
-    signalement_affaire = read_table('signalement_affaire')
-    if 'signalement_id' in table.columns:
-        table.rename(columns = {'signalement_id':'signalement_id_orig'},
-                                inplace = True)
-    table_signalement_affaire = pd.merge(table, signalement_affaire,
-                                         on='affaire_id',
-                                         how='left',
-                                         indicator='merge_signalement')
-    #    len(table.affaire_id) # => 37322
-    #    len(lien_signalement_affaire.affaire_id) ## => 30871
-    #    len(result1.affaire_id) ## => 30692
 
-    # étape 2 : signalement
+    # signalements
+    signalement_affaire = read_table('signalement_affaire')
+
     signalement = read_table('signalement')
     var_to_keep = ['id', 'adresse_id']
     if liste_var_signalement is not None:
@@ -57,14 +49,34 @@ def adresses_via_signalement(table,
     signalement = signalement[var_to_keep]
     ##Rename 'id' column of signalement table
     signalement.rename(columns = {'id':'signalement_id'}, inplace = True)
-    table_signalement = pd.merge(table_signalement_affaire, signalement,
+    table_signalement = pd.merge(signalement_affaire, signalement,
                                  on='signalement_id',
                                  how='left')
 
+    # est-ce que pour une affaire on a une seule adresse
+    table_signalement.groupby(['affaire_id'])['adresse_id'].nunique().value_counts()
+    # => non
+    # l'étude de ces cas, montre que l'on peut utiliser une seule des adresse_id
+    # adresse[adresse.adresse_id.isin(table_signalement.loc[table_signalement.affaire_id == 12795, 'adresse_id'])]
+    if prevent_duplicates:    
+        table_signalement.drop_duplicates(['affaire_id'], inplace=True)
+
+
+    assert table_signalement.affaire_id.value_counts().max() == 1
+    if 'signalement_id' in table.columns:
+        table.rename(columns = {'signalement_id':'signalement_id_orig'},
+                                inplace = True)
     if 'libelle' in table_signalement.columns:
         table_signalement.rename(columns = {'libelle':'libelle_table'}, inplace = True)
 
-    return table_signalement
+    table_avec_signalement = pd.merge(table, table_signalement,
+                                         on='affaire_id',
+                                         how='left',
+                                         indicator='merge_signalement')
+    #    len(table.affaire_id) # => 37322
+    #    len(lien_signalement_affaire.affaire_id) ## => 30871
+    #    len(result1.affaire_id) ## => 30692
+    return table_avec_signalement
 
 
 if __name__ == '__main__':
