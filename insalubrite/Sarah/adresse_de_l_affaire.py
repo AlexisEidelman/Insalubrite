@@ -70,9 +70,10 @@ def coherence_adresses_via_signalement_et_via_bien_id():
     
     ## => quand c'est matché, ça marche !!
 
-def adresse_max(table):
+def adresse_max(table, indicator=False):
     '''
        Extrait le maximum d'adresse_id en passant via bien_id ou via signalement
+       indicator à la même fonction que dans la fonction merge de pandas
     '''
     assert 'affaire_id' in table.columns
     #Dans Sarah on a deux sources d'adresses: bien_id ou signalement_id 
@@ -81,20 +82,25 @@ def adresse_max(table):
     
     #merge table avec adresses venant de bien_id
     table_bien_id = adresse_via_bien_id(table)
+    assert table_bien_id['affaire_id'].value_counts().max() == 1    
     
     #merge table avec adresses venant de signalement
     table_signalement = adresses_via_signalement(table)
     table_signalement.drop(['signalement_id','merge_signalement'],
                            axis = 1,
                            inplace = True)
-
+    assert table_signalement['affaire_id'].value_counts().max() == 1 
     
-    var_to_merge_on = table.columns.to_series().tolist()
-    table_adresses_max = table_signalement.merge(table_bien_id, 
+    var_to_merge_on = table.columns.tolist()
+    table_bien_id = table_bien_id[var_to_merge_on + ['adresse_id']]
+    table_signalement = table_signalement[var_to_merge_on + ['adresse_id']]
+    table_adresses_max = table_bien_id.merge(table_signalement, 
                                 on = var_to_merge_on,
-                                how='left',
+                                how='outer',
                                 suffixes=('_sign','_bien'),
-                                )  
+                                indicator=indicator,
+                                )
+#    assert len(table_adresses_max) == len(table_bien_id)
     #table_adresses_max.adresse_id_bien.value_counts(dropna=False)
     ##=> NaN 30832, reste 21843
     #table_adresses_max.adresse_id_sign.value_counts(dropna=False)
@@ -106,14 +112,19 @@ def adresse_max(table):
     #Idée: Construire une colonne adresse_id avec adresse_id_sign quand ça 
     # existe et sinon adresse_id_bien
     table_adresses_max['adresse_id'] = table_adresses_max['adresse_id_sign']
-    no_adresse_signalement = table_adresses_max.adresse_id_sign.isnull()
+    no_adresse_signalement = table_adresses_max['adresse_id_sign'].isnull()
     table_adresses_max.loc[no_adresse_signalement, 'adresse_id'] = \
             table_adresses_max.loc[no_adresse_signalement, 'adresse_id_bien' ] 
+
+    #retire les doublons, en ne gardant
+    table_adresses_max.drop_duplicates(inplace=True)
+    table_adresses_max.groupby(var_to_merge_on)['adresse_id'].nunique()
     
+    assert len(table_adresses_max) == len(table)
     return table_adresses_max
     
 if __name__ == '__main__':
-    hyg = read_table('affhygiene')
-    adresse_par_affaires = adresse_max(hyg)
+    hyg = read_table('affhygiene')[['affaire_id', 'bien_id']]
+    adresse_par_affaires = adresse_max(hyg, indicator='origine')
     
     

@@ -106,20 +106,24 @@ def adresse_via_bien_id(table):
     table['localhabite_id'] = table['bien_id']*(table['bien_id_provenance'] == 'localhabite')
     table.replace(0, np.nan, inplace=True)
     localhabite.rename(columns={'id': 'localhabite_id'}, inplace=True)
+    assert localhabite['localhabite_id'].value_counts().max() == 1
     table = table.merge(localhabite, on = 'localhabite_id', how='left')
     
     bien_id_batiment = table['bien_id_provenance'] == 'batiment'
     table.loc[bien_id_batiment, 'batiment_id'] = table.loc[bien_id_batiment, 'bien_id']
     batiment.rename(columns={'id': 'batiment_id'}, inplace=True)
+    assert batiment['batiment_id'].value_counts().max() == 1
     table = table.merge(batiment, on = 'batiment_id', how='left')
     
     bien_id_immeuble = table['bien_id_provenance'] == 'immeuble'
     table.loc[bien_id_immeuble, 'immeuble_id'] = table.loc[bien_id_immeuble, 'bien_id']
     immeuble.rename(columns={'id': 'immeuble_id'}, inplace=True)
+    assert immeuble['immeuble_id'].value_counts().max() == 1
     table = table.merge(immeuble, on = 'immeuble_id', how='left')
     
     bien_id_parcelle = table['bien_id_provenance'] == 'parcelle_cadastrale'
     table.loc[bien_id_parcelle, 'parcelle_id'] = table.loc[bien_id_parcelle, 'bien_id']
+    assert parcelle_cadastrale['parcelle_id'].value_counts().max() == 1
     table = table.merge(parcelle_cadastrale, on = 'parcelle_id', how='left')
     
     table.rename(
@@ -129,7 +133,6 @@ def adresse_via_bien_id(table):
         'observations': 'observations_immeuble',
         },
         inplace=True)
-
 
     return table
 
