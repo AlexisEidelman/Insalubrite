@@ -70,7 +70,7 @@ def coherence_adresses_via_signalement_et_via_bien_id():
     
     ## => quand c'est matché, ça marche !!
 
-def adresse_max(table, indicator=False):
+def add_adresse_id(table, indicator=False):
     '''
        Extrait le maximum d'adresse_id en passant via bien_id ou via signalement
        indicator à la même fonction que dans la fonction merge de pandas

@@ -26,7 +26,7 @@ import pandas as pd
 
 from insalubrite.Sarah.read import read_table
 from insalubrite.Sarah.adresses import parcelles, adresses
-from insalubrite.Sarah.bien_id import adresse_via_bien_id
+from insalubrite.Sarah.adresse_de_l_affaire import add_adresse_id
 from insalubrite.match_to_ban import merge_df_to_ban
 
 from insalubrite.config_insal import path_bspp, path_output
@@ -35,9 +35,17 @@ from insalubrite.config_insal import path_bspp, path_output
 def create_sarah_table():
     hyg = read_table('affhygiene')
 
+    # on garde les affaires ayant déjà eu au moins une visite
     cr = read_table('cr_visite')
     hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
+
+    
     infraction = read_table('infraction')[['affaire_id', 'infractiontype_id']]
+    # on ne garde qu'une infraction maximum par affaire
+    # en conservant la "plus grave"
+    infraction['infractiontype_id'].replace([30, 31, 32], [-30, -31, -32], inplace=True)
+    infraction = infraction.groupby('affaire_id')['infractiontype_id'].max().reset_index()
+    infraction['infractiontype_id'].replace([-30, -31, -32], [30, 31, 32], inplace=True)
 
     infractiontype = read_table('infractiontype')
     infractiontype.drop(['active', 'ordre'], axis=1, inplace=True)
@@ -46,14 +54,16 @@ def create_sarah_table():
 
     infraction = infraction.merge(infractiontype, on='infractiontype_id', how='left')
 
+
     affaire = hyg.merge(infraction, on = 'affaire_id', how="left")
 
 
-    hyg_bien_id = adresse_via_bien_id(affaire)
+    affaire_with_adresse = add_adresse_id(affaire)
 
-    adresse = adresses()[['adresse_id', 'typeadresse', 'libelle']]
-    sarah = hyg_bien_id.merge(adresse, on = 'adresse_id',
-                              how = 'left')
+    adresse = adresses()[['adresse_id', 'typeadresse', 
+        'libelle', 'codepostal', 'codeinsee', 'code_cadastre']]
+    sarah = affaire_with_adresse.merge(adresse, on = 'adresse_id',
+                                       how = 'left')
     sarah_adresse = sarah[sarah.adresse_id.notnull()]
 
     sarah_adresse = merge_df_to_ban(sarah_adresse,
@@ -98,6 +108,8 @@ def infos_parcelles():
 
     # hotel meublé
     path_hm = os.path.join(path_output, 'hm.csv')
+    if not os.path.exists(path_hm):
+        import insalubrite.Apur.hotel_meuble
     hm = pd.read_csv(path_hm)
 
     augmentation = hm.merge(demandeurs, on='ASP', how='outer')
@@ -243,18 +255,17 @@ def add_saturnisme(table):
 
 
 
-
 if __name__ == '__main__':
-    path_affaires = os.path.join(path_output, 'affaires_avec_adresse.csv')
+    path_affaires = os.path.join(path_output, 'sarah_adresse.csv')
     if os.path.exists(path_affaires):
-        adresses_sarah = pd.read_csv(path_affaires)
+        data_sarah = pd.read_csv(path_affaires)
     else:
-        adresses_sarah = create_sarah_table()
-        adresses_sarah.to_csv(path_affaires, encoding='utf8', index=False)
+        data_sarah = create_sarah_table()
+        data_sarah.to_csv(path_affaires, encoding='utf8', index=False)
 
-    sarah = adresses_sarah.copy()
+    sarah = data_sarah.copy()
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
-    sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
+    sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple'] # TODO: analyser le biais créée
     sarah_augmentee_parcelle = sarah[['affaire_id', 'code_cadastre',
                                       'codeinsee',
                                       'infractiontype_id', 'titre']]
