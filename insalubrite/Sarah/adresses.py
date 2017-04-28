@@ -115,7 +115,6 @@ def adresses():
 
     adresse = pd.merge(adresse, cadastre, on='parcelle_id', how='left')
 
-    adresse['code_cadastre'].fillna('inconnu_car_source_adrsimple', inplace = True)
     # adresse.rename(columns = {'codepostal_adresse':'codepostal'}, inplace = True)
     adresse.loc[adresse['codepostal'].isnull(), 'codepostal'] = \
     adresse.loc[adresse['codepostal'].isnull(), 'codepostal_adresse']

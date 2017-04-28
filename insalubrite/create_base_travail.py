@@ -40,7 +40,7 @@ def create_sarah_table():
     cr = read_table('cr_visite')
     hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
 
-    
+
     infraction = read_table('infraction')[['affaire_id', 'infractiontype_id']]
     # on ne garde qu'une infraction maximum par affaire
     # en conservant la "plus grave"
@@ -58,21 +58,32 @@ def create_sarah_table():
 
     affaire = hyg.merge(infraction, on = 'affaire_id', how="left")
 
-
     affaire_with_adresse = add_adresse_id(affaire)
 
-    adresse = adresses()[['adresse_id', 'typeadresse', 
+    adresse = adresses()[['adresse_id', 'typeadresse',
         'libelle', 'codepostal', 'codeinsee', 'code_cadastre']]
     sarah = affaire_with_adresse.merge(adresse, on = 'adresse_id',
                                        how = 'left')
-    sarah_adresse = sarah[sarah.adresse_id.notnull()]
 
+    # on prend le code cadastre de l'adresse_id ou l'ancien (celui de bien_id)
+    # quand on n'a pas d'adresse
+    sarah['code_cadastre'] = sarah['code_cadastre_y']
+    # quelques incohérence (516 sur 34122)
+    pb = sarah.loc[sarah['code_cadastre'].notnull(), 'code_cadastre'] != \
+        sarah.loc[sarah['code_cadastre'].notnull(), 'code_cadastre_x']
+
+    sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre'] = \
+        sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre_x']
+    sarah.drop(['code_cadastre_x', 'code_cadastre_y'], axis=1, inplace=True)
+
+    # match ban
+    sarah_adresse = sarah[sarah.adresse_id.notnull()]
     sarah_adresse = merge_df_to_ban(sarah_adresse,
                              os.path.join(path_output, 'temp.csv'),
                              ['libelle', 'codepostal'],
                              name_postcode = 'codepostal')
-
     sarah = sarah_adresse.append(sarah[sarah.adresse_id.isnull()])
+
     return sarah
 
 
@@ -121,7 +132,7 @@ def infos_parcelles():
 def add_infos_parcelles(table):
     assert 'code_cadastre' in table.columns
     assert table['code_cadastre'].notnull().all()
-    
+
     parcelle = infos_parcelles()
 
     #prépare table pour le match
@@ -141,6 +152,18 @@ def add_infos_parcelles(table):
     return table_parcelle
 
 
+
+######################################################
+###         travail au niveau adresse       ###
+######################################################
+
+def _read_adress_data(path_csv, module, force=False):
+    if not os.path.exists(path_csv) or force:
+        print('**** Load :', module)
+        importlib.import_module(module)
+    return pd.read_csv(path_csv)
+
+
 ###########################
 ###         BSPP        ###
 ###########################
@@ -150,20 +173,13 @@ def add_infos_parcelles(table):
 
 # il y a un effet, à force de chercher, le STH trouve.
 
-def _read_adress_data(path_csv, module, force=False):
-    if not os.path.exists(path_csv) or force:
-        importlib.import_module('insalubrite.Apur.PP')
-    
-    return pd.read_csv(path_csv)
-    
-
 def add_bspp(table, force=False):
     bspp = _read_adress_data(
         os.path.join(path_bspp, 'paris_ban.csv'),
         'insalubrite.bspp.read',
         force=force,
         )
-    
+
     ### Fusion des données
     bspp = bspp[bspp.adresse_ban_id.isin(table.adresse_ban_id)]
 
@@ -200,6 +216,7 @@ def add_eau(table, force=False):
         'insalubrite.Apur.eau',
         force=force,
         )
+    eau = eau[~eau['adresse_ban_id'].duplicated(keep='last')]
     table_eau = table.merge(eau[['adresse_ban_id', 'eau_annee_source']],
                        how='outer',
                        on='adresse_ban_id',
@@ -272,16 +289,20 @@ def add_pp(table, force=False):
 
 
 if __name__ == '__main__':
+    force_all = False
+
     path_affaires = os.path.join(path_output, 'sarah_adresse.csv')
-    if os.path.exists(path_affaires):
-        data_sarah = pd.read_csv(path_affaires)
-    else:
+    if not os.path.exists(path_affaires) or force_all:
         data_sarah = create_sarah_table()
         data_sarah.to_csv(path_affaires, encoding='utf8', index=False)
+    else:
+        data_sarah = pd.read_csv(path_affaires)
 
     sarah = data_sarah.copy()
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
-    sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple'] 
+
+
+    sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
     sarah_augmentee_parcelle = sarah[['affaire_id', 'code_cadastre',
                                       'codeinsee',
@@ -301,12 +322,13 @@ if __name__ == '__main__':
     sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
                                    'infractiontype_id', 'titre',
                                    'code_cadastre']]
-    sarah_augmentee_adresses = add_bspp(sarah_adresse)
-    sarah_augmentee_adresses = add_eau(sarah_augmentee_adresses)
-    sarah_augmentee_adresses = add_saturnisme(sarah_augmentee_adresses)
+    sarah_augmentee_adresses1 = add_bspp(sarah_adresse, force_all)
+    sarah_augmentee_adresses2 = add_eau(sarah_augmentee_adresses1, force_all)
+    sarah_augmentee_adresses3 = add_saturnisme(sarah_augmentee_adresses2, force_all)
+    sarah_augmentee_adresses4 = add_pp(sarah_augmentee_adresses3, force_all)
 
     path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
-    sarah_augmentee_adresses.to_csv(path_output_adresse, index=False,
+    sarah_augmentee_adresses4.to_csv(path_output_adresse, index=False,
                                     encoding="utf8")
 
 

@@ -14,23 +14,23 @@ def _create_ASP(tab):
     ASP2 = tab['C_SEC']
     ASP3 = tab['N_PC'].astype(str).str.zfill(4)
     return ASP1 + '-' + ASP2 + '-' + ASP3
-    
-    
+
+
 def read_parcelle(yr):
     year = str(yr)
     path_apur_year = path_apur + year
-    
+
     # parcelle cadastralle
     path_file_excel = os.path.join(path_apur_year,
                             '00 PARCELLE_CADASTRALE_STAT_' + year + '.xlsx'
                             )
     path_file_csv = path_file_excel[:-5] + '.csv'
-    
+
     if os.path.exists(path_file_csv):
         return pd.read_csv(path_file_csv)
-    
+
     else:
-        tab = pd.read_excel(path_file_excel)    
+        tab = pd.read_excel(path_file_excel)
 
         tab.rename(columns={'C_CAINSEE': 'codeinsee'}, inplace=True)
         # TODO: attention, N_SQ_PC le numéro séquentiel est
@@ -38,29 +38,29 @@ def read_parcelle(yr):
         # sur l'autre. C'est très piège, on retire tout de suite.
         tab.drop(['N_SQ_PC', 'N_SQ_PD', 'OBJECTID', 'B_GRAPH'], axis=1,
                       inplace=True)
-    
+
         # C_PDNIV0, C_PDNIV1 et C_PDNIV2, correspondent au libellé
         #                  L_PDNIV0, L_PDNIV1 et L_PDNIV2
         # ces éléments sont imbriqués, les niveaux deux correspondent à un groupe
         #                  de niveau 1 qui correspond à un groupe de niveau 0
         tab.drop(['C_PDNIV0', 'C_PDNIV1', 'C_PDNIV2'], axis=1,
                       inplace=True)
-        
-        
+
+
         cols_logement_activite = [x for x in tab.columns if 'NB_LA_' in x]
         # en fait on a NB_LOCACT qui est mieux rempli que le NB_LA
         # parcelles['NB_LA'] = parcelles[cols_logement_activite].sum(axis=1)
         tab.drop(cols_logement_activite, axis=1, inplace=True)
-    
+
         tab['ASP'] = _create_ASP(tab)
-        tab.drop(['C_SEC', 'N_PC'], axis=1, inplace=True)  
-        
+        tab.drop(['C_SEC', 'N_PC', 'codeinsee'], axis=1, inplace=True)
+
         tab.to_csv(path_file_csv, index=False, encoding='utf8')
     return read_parcelle(yr) # pour lire le csv
 
 
 def test_identifiant(tab):
-    # est-ce utile ? 
+    # est-ce utile ?
     for col in tab.columns:
         try:
             a = tab[col].astype(float)

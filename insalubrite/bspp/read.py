@@ -95,7 +95,6 @@ tab_paris = merge_df_to_ban(
     os.path.join(path_bspp, 'temp.csv'),
     ['voie','ville', 'code_postal'],
     name_postcode = 'code_postal',
-    encode_utf8 = True
     )
 
 path_csv_paris = os.path.join(path_bspp, 'paris_ban.csv')
