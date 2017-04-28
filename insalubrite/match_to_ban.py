@@ -18,17 +18,19 @@ def csv_to_ban(path_csv, name_postcode=''):
     data = {}
     if name_postcode:
         data = {
+            'encoding': 'utf-8',
+            'delimiter': ',',
             'postcode': name_postcode
             }
-    r = requests.post('http://devapi-adresse.data.gouv.fr/search/csv/',
-                      files = {'data': open(path_csv)},
-                      json = data)
+    r = requests.post('http://api-adresse.data.gouv.fr/search/csv/',
+                      files = {'data': open(path_csv, encoding='utf8')},
+                      data = data)
     print(r.status_code, r.reason)
     return pd.read_csv(StringIO(r.content.decode('UTF-8')))
 
 
 def merge_df_to_ban(tab, path_csv, var_to_send,
-                             name_postcode, encode_utf8=False):
+                             name_postcode):
     '''retourne un DataFrame tab augmenté via
     https://adresse.data.gouv.fr/api-gestion'''
     
