@@ -258,6 +258,29 @@ def add_saturnisme(table):
     return table_sat
 
 
+def add_pp(table):
+    path_pp = os.path.join(path_output, 'pp.csv')
+    if not os.path.exists(path_pp):
+        import insalubrite.Apur.PP
+        
+    pp = pd.read_csv(path_pp)
+    # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
+    pp = pp[~pp['adresse_ban_id'].duplicated(keep='last')]
+
+    table_pp = table.merge(pp[['adresse_ban_id', 'dossier prefecture']],
+                            on='adresse_ban_id',
+                            how='outer',
+                            indicator='match_pp')
+
+    table_pp['dossier prefecture'].value_counts(dropna=False)
+    table_pp['match_pp']
+    # on rate des adresses de pp celle où il n'y a pas eu d'affaire
+    # TODO: récupérer la date
+    # TODO: récupérer la date pour vérifier qu'on est avant la visite
+    table_pp = table_pp[table_pp['match_pp'] != "right_only"]
+    del table_pp['match_pp']
+    return table_pp
+
 
 if __name__ == '__main__':
     path_affaires = os.path.join(path_output, 'sarah_adresse.csv')
