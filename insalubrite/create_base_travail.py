@@ -83,31 +83,10 @@ def create_sarah_table():
 # on rejoint les deux car parcelle et demandeurs sont au niveau parcelle
 # cadastrale
 
-def _create_ASP(tab):
-    ASP1 = tab['codeinsee'].astype(str).str[3:5].str.zfill(3)
-    ASP2 = tab['C_SEC']
-    ASP3 = tab['N_PC'].astype(str).str.zfill(4)
-    return ASP1 + '-' + ASP2 + '-' + ASP3
 
 def infos_parcelles():
     from insalubrite.Apur.parcelles import read_parcelle
     parcelle = read_parcelle(2015)
-    parcelle.rename(columns={'C_CAINSEE': 'codeinsee'}, inplace=True)
-    # TODO: attention, N_SQ_PC le numéro séquentiel est
-    # déterminé par année avec réaffectation des numéros d'une année
-    # sur l'autre. C'est très piège, on retire tout de suite.
-    parcelle.drop(['N_SQ_PC', 'N_SQ_PD', 'OBJECTID', 'B_GRAPH'], axis=1,
-                  inplace=True)
-
-    # C_PDNIV0, C_PDNIV1 et C_PDNIV2, correspondent au libellé
-    #                  L_PDNIV0, L_PDNIV1 et L_PDNIV2
-    # ces éléments sont imbriqués, les niveaux deux correspondent à un groupe
-    #                  de niveau 1 qui correspond à un groupe de niveau 0
-    parcelle.drop(['C_PDNIV0', 'C_PDNIV1', 'C_PDNIV2'], axis=1,
-                  inplace=True)
-    
-    parcelle['ASP'] = _create_ASP(parcelle)
-    parcelle.drop(['C_SEC', 'N_PC'], axis=1, inplace=True)  
 
     # demandeur
     path_dem = os.path.join(path_output, 'demandeurs.csv')
@@ -146,7 +125,7 @@ def add_infos_parcelles(table):
 
     #prépare table pour le match
     code = table['code_cadastre']
-    table.loc['ASP'] = '0' + code.str[3:5] + '-' + code.str[6:8] + '-' + code.str[8:]
+    table['ASP'] = '0' + code.str[3:5] + '-' + code.str[6:8] + '-' + code.str[8:]
 
     table_parcelle = table.merge(parcelle, on=['ASP'],
                        how='left', indicator=True)

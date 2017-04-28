@@ -8,16 +8,55 @@ import pandas as pd
 
 from insalubrite.config_insal import path_apur
 
-def read_parcelle(year):
-    year = str(2015)
+
+def _create_ASP(tab):
+    ASP1 = tab['codeinsee'].astype(str).str[3:5].str.zfill(3)
+    ASP2 = tab['C_SEC']
+    ASP3 = tab['N_PC'].astype(str).str.zfill(4)
+    return ASP1 + '-' + ASP2 + '-' + ASP3
+    
+    
+def read_parcelle(yr):
+    year = str(yr)
     path_apur_year = path_apur + year
     
     # parcelle cadastralle
-    tab_file = os.path.join(path_apur_year,
+    path_file_excel = os.path.join(path_apur_year,
                             '00 PARCELLE_CADASTRALE_STAT_' + year + '.xlsx'
                             )
-    tab = pd.read_excel(tab_file)
-    return tab
+    path_file_csv = path_file_excel[:-5] + '.csv'
+    
+    if os.path.exists(path_file_csv):
+        return pd.read_csv(path_file_csv)
+    
+    else:
+        tab = pd.read_excel(path_file_excel)    
+
+        tab.rename(columns={'C_CAINSEE': 'codeinsee'}, inplace=True)
+        # TODO: attention, N_SQ_PC le numéro séquentiel est
+        # déterminé par année avec réaffectation des numéros d'une année
+        # sur l'autre. C'est très piège, on retire tout de suite.
+        tab.drop(['N_SQ_PC', 'N_SQ_PD', 'OBJECTID', 'B_GRAPH'], axis=1,
+                      inplace=True)
+    
+        # C_PDNIV0, C_PDNIV1 et C_PDNIV2, correspondent au libellé
+        #                  L_PDNIV0, L_PDNIV1 et L_PDNIV2
+        # ces éléments sont imbriqués, les niveaux deux correspondent à un groupe
+        #                  de niveau 1 qui correspond à un groupe de niveau 0
+        tab.drop(['C_PDNIV0', 'C_PDNIV1', 'C_PDNIV2'], axis=1,
+                      inplace=True)
+        
+        
+        cols_logement_activite = [x for x in tab.columns if 'NB_LA_' in x]
+        # en fait on a NB_LOCACT qui est mieux rempli que le NB_LA
+        # parcelles['NB_LA'] = parcelles[cols_logement_activite].sum(axis=1)
+        tab.drop(cols_logement_activite, axis=1, inplace=True)
+    
+        tab['ASP'] = _create_ASP(tab)
+        tab.drop(['C_SEC', 'N_PC'], axis=1, inplace=True)  
+        
+        tab.to_csv(path_file_csv, index=False, encoding='utf8')
+    return read_parcelle(yr) # pour lire le csv
 
 
 def test_identifiant(tab):
@@ -36,7 +75,6 @@ def test_identifiant(tab):
 
 if __name__ == '__main__':
     tab = read_parcelle(2015)
-    
     logement = [x for x in tab.columns if 'NB_LG' in x]
     piece = [x for x in tab.columns if 'NB_PIEC' in x]
     nb_la = [x for x in tab.columns if 'NB_LA' in x]
