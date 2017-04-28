@@ -22,6 +22,7 @@ pour enrichir la base. Pour l'instant, on utilise:
 
 
 import os
+import importlib
 import pandas as pd
 
 from insalubrite.Sarah.read import read_table
@@ -149,13 +150,20 @@ def add_infos_parcelles(table):
 
 # il y a un effet, à force de chercher, le STH trouve.
 
+def _read_adress_data(path_csv, module, force=False):
+    if not os.path.exists(path_csv) or force:
+        importlib.import_module('insalubrite.Apur.PP')
+    
+    return pd.read_csv(path_csv)
+    
 
-def add_bspp(table):
-    path_csv_bspp = os.path.join(path_bspp, 'paris_ban.csv')
-    if not os.path.exists(path_csv_bspp):
-        import insalubrite.bspp.read
-    bspp = pd.read_csv(path_csv_bspp)
-
+def add_bspp(table, force=False):
+    bspp = _read_adress_data(
+        os.path.join(path_bspp, 'paris_ban.csv'),
+        'insalubrite.bspp.read',
+        force=force,
+        )
+    
     ### Fusion des données
     bspp = bspp[bspp.adresse_ban_id.isin(table.adresse_ban_id)]
 
@@ -186,11 +194,12 @@ def add_bspp(table):
 # ça pourrit l'analyse. Voir comment ça va avec les autres.
 # éliminer les faux.
 
-def add_eau(table):
-    path_eau = os.path.join(path_output, 'eau.csv')
-    if not os.path.exists(path_eau):
-        import insalubrite.Apur.eau
-    eau = pd.read_csv(path_eau)
+def add_eau(table, force=False):
+    eau = _read_adress_data(
+        os.path.join(path_output, 'eau.csv'),
+        'insalubrite.Apur.eau',
+        force=force,
+        )
     table_eau = table.merge(eau[['adresse_ban_id', 'eau_annee_source']],
                        how='outer',
                        on='adresse_ban_id',
@@ -210,14 +219,15 @@ def add_eau(table):
 ###      saturnisme     ###
 ###########################
 
-def add_saturnisme(table):
+def add_saturnisme(table, force=False):
     # question métier : si le saturnisme est décelé après une première
     # viste d'insalubrité, alors le serpent se mord la queue :
     # on utilise le résultat pour prédire le résultat
-    path_sat = os.path.join(path_output, 'sat.csv')
-    if not os.path.exists(path_sat):
-        import insalubrite.Apur.saturnisme
-    sat = pd.read_csv(path_sat)
+    sat = _read_adress_data(
+        os.path.join(path_output, 'sat.csv'),
+        'insalubrite.Apur.saturnisme',
+        force=force,
+        )
     sat['Type_saturnisme'] = sat['Type'] # rename moche
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
     sat = sat[~sat['adresse_ban_id'].duplicated(keep='last')]
@@ -237,12 +247,12 @@ def add_saturnisme(table):
     return table_sat
 
 
-def add_pp(table):
-    path_pp = os.path.join(path_output, 'pp.csv')
-    if not os.path.exists(path_pp):
-        import insalubrite.Apur.PP
-        
-    pp = pd.read_csv(path_pp)
+def add_pp(table, force=False):
+    pp = _read_adress_data(
+        os.path.join(path_output, 'pp.csv'),
+        'insalubrite.Apur.PP',
+        force=force,
+        )
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
     pp = pp[~pp['adresse_ban_id'].duplicated(keep='last')]
 
