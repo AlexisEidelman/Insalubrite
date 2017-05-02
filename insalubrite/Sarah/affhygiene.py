@@ -15,15 +15,17 @@ from numpy import nan
 from insalubrite.config_insal import path_sarah
 from insalubrite.Sarah.read import read_sql, read_table
 
-primary_key, foreign_key = read_sql()
+
 tables_on_disk = set(x[:-4] for x in os.listdir(path_sarah))
 
 verbose = True
 
 def tables_reliees_a(name_table):
+    primary_key, foreign_key = read_sql()
     return [x for x in foreign_key if x[2] == name_table]
 
 def est_reliee_a(name_table):
+    primary_key, foreign_key = read_sql()
     return [x for x in foreign_key if x[0] == name_table]
 
 # on copie la liste de liens
