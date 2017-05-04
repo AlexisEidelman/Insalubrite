@@ -163,7 +163,27 @@ def _read_adress_data(path_csv, module, force=False):
         importlib.import_module(module)
     return pd.read_csv(path_csv)
 
-
+def select(table_to_select):
+    """
+      Sélectionne les observations dont la date est antérieure aux dates de 
+      affhygiene
+    """
+    assert 'date'.isin(table_to_select.columns)
+    
+    #étape 1: préparer affhygiene
+    hyg = read_table('affhygiene')
+    cr = read_table('cr_visite')
+    hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
+    #étape 2: ajouter à table_to_select une colonne date provenant de affhygiene
+    table_selected = table_to_select.merge(hyg,
+                                           on = 'adresse',
+                                           how = 'left',
+                                           indicator = True)
+    select_on_date = table_to_select.date < hyg.date
+    table_selected = table_selected.iloc[select_on_date]
+    return table_selected
+    
+    
 ###########################
 ###         BSPP        ###
 ###########################

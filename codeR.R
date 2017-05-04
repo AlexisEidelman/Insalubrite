@@ -8,6 +8,7 @@ library(FactoMineR)
 library(pscl)
 library(MASS)
 library(VGAM)
+
 data = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/base.csv")
 data_parcelle = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_parcelles.csv")
 data_adresse = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_adresses.csv")
