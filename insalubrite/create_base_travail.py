@@ -66,6 +66,9 @@ def create_sarah_table():
     affaire = hyg.merge(infraction, on = 'affaire_id', how="left")
 
     affaire_with_adresse = add_adresse_id(affaire)
+    affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
+                               'localhabite_id', 'adresse_id_bien'],
+                               axis=1, inplace=True)
 
     adresse = adresses()[['adresse_id', 'typeadresse',
         'libelle', 'codepostal', 'codeinsee', 'code_cadastre']]
@@ -83,13 +86,15 @@ def create_sarah_table():
         sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre_x']
     sarah.drop(['code_cadastre_x', 'code_cadastre_y'], axis=1, inplace=True)
 
+
     # match ban
-    sarah_adresse = sarah[sarah.adresse_id.notnull()]
+    match_possible = sarah['codepostal'].notnull() & sarah['libelle'].notnull()
+    sarah_adresse = sarah[match_possible]
     sarah_adresse = merge_df_to_ban(sarah_adresse,
                              os.path.join(path_output, 'temp.csv'),
                              ['libelle', 'codepostal'],
                              name_postcode = 'codepostal')
-    sarah = sarah_adresse.append(sarah[sarah.adresse_id.isnull()])
+    sarah = sarah_adresse.append(sarah[~match_possible])
 
     return sarah
 
@@ -99,7 +104,7 @@ def sarah_data(force=False):
     if not os.path.exists(path_sarah) or force:
         print('**** Load : Sarah',)
         sarah_data = create_sarah_table()
-        sarah_data.to_csv(path_affaires, encoding='utf8', index=False)
+        sarah_data.to_csv(path_sarah, encoding='utf8', index=False)
     else:
         sarah_data = pd.read_csv(path_sarah)
     return sarah_data
