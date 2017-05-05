@@ -33,6 +33,13 @@ from insalubrite.match_to_ban import merge_df_to_ban
 from insalubrite.config_insal import path_bspp, path_output
 
 
+def _read_or_generate_data(path_csv, module, force=False):
+    if not os.path.exists(path_csv) or force:
+        print('**** Load :', module)
+        importlib.import_module(module)
+    return pd.read_csv(path_csv)
+    
+
 def create_sarah_table():
     hyg = read_table('affhygiene')
 
@@ -166,11 +173,6 @@ def add_infos_parcelles(table):
 ###         travail au niveau adresse       ###
 ######################################################
 
-def _read_adress_data(path_csv, module, force=False):
-    if not os.path.exists(path_csv) or force:
-        print('**** Load :', module)
-        importlib.import_module(module)
-    return pd.read_csv(path_csv)
 
 
 def select(table_to_select):
@@ -204,7 +206,7 @@ def select(table_to_select):
 # il y a un effet, à force de chercher, le STH trouve.
 
 def add_bspp(table, force=False):
-    bspp = _read_adress_data(
+    bspp = _read_or_generate_data(
         os.path.join(path_bspp, 'paris_ban.csv'),
         'insalubrite.bspp.read',
         force=force,
@@ -241,7 +243,7 @@ def add_bspp(table, force=False):
 # éliminer les faux.
 
 def add_eau(table, force=False):
-    eau = _read_adress_data(
+    eau = _read_or_generate_data(
         os.path.join(path_output, 'eau.csv'),
         'insalubrite.Apur.eau',
         force=force,
@@ -270,7 +272,7 @@ def add_saturnisme(table, force=False):
     # question métier : si le saturnisme est décelé après une première
     # viste d'insalubrité, alors le serpent se mord la queue :
     # on utilise le résultat pour prédire le résultat
-    sat = _read_adress_data(
+    sat = _read_or_generate_data(
         os.path.join(path_output, 'sat.csv'),
         'insalubrite.Apur.saturnisme',
         force=force,
@@ -295,7 +297,7 @@ def add_saturnisme(table, force=False):
 
 
 def add_pp(table, force=False):
-    pp = _read_adress_data(
+    pp = _read_or_generate_data(
         os.path.join(path_output, 'pp.csv'),
         'insalubrite.Apur.PP',
         force=force,
@@ -318,6 +320,13 @@ def add_pp(table, force=False):
     return table_pp
 
 
+def add_infos_niveau_adresse(tab):
+    tab1 = add_bspp(tab, force_all)
+    tab2 = add_eau(tab1, force_all)
+    tab3 = add_saturnisme(tab2, force_all)
+    tab4 = add_pp(tab3, force_all)    
+    return tab4
+    
 
 if __name__ == '__main__':
     force_all = False
@@ -345,13 +354,10 @@ if __name__ == '__main__':
     sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
                                    'infractiontype_id', 'titre',
                                    'code_cadastre']]
-    sarah_augmentee_adresses1 = add_bspp(sarah_adresse, force_all)
-    sarah_augmentee_adresses2 = add_eau(sarah_augmentee_adresses1, force_all)
-    sarah_augmentee_adresses3 = add_saturnisme(sarah_augmentee_adresses2, force_all)
-    sarah_augmentee_adresses4 = add_pp(sarah_augmentee_adresses3, force_all)
 
+    sarah_adresse = add_infos_niveau_adresse(sarah_adresse)
     path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
-    sarah_augmentee_adresses4.to_csv(path_output_adresse, index=False,
+    sarah_adresse.to_csv(path_output_adresse, index=False,
                                     encoding="utf8")
 
 
