@@ -325,16 +325,20 @@ def add_pp(table, force=False):
     return table_pp
 
 
-def add_infos_niveau_adresse(tab, force_all=False):
-    tab1 = add_bspp(tab, force_all)
-    tab2 = add_eau(tab1, force_all)
-    tab3 = add_saturnisme(tab2, force_all)
-    tab4 = add_pp(tab3, force_all)    
+def add_infos_niveau_adresse(tab, force_all=False,
+                             force_bspp=False,
+                             force_eau=False,
+                             force_saturnisme=False,
+                             force_pp=False):
+    tab1 = add_bspp(tab, force_all or force_bspp)
+    tab2 = add_eau(tab1, force_all or force_eau)
+    tab3 = add_saturnisme(tab2, force_all or force_saturnisme)
+    tab4 = add_pp(tab3, force_all or force_pp)    
     return tab4
     
 
 if __name__ == '__main__':
-    force_all = True
+    force_all = False
     sarah = sarah_data(force_all)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
 
@@ -360,7 +364,12 @@ if __name__ == '__main__':
                                    'infractiontype_id', 'titre',
                                    'code_cadastre']]
 
-    sarah_adresse = add_infos_niveau_adresse(sarah_adresse)
+    sarah_adresse = add_infos_niveau_adresse(sarah_adresse,
+                             force_all,
+                             force_bspp=False,
+                             force_eau=True,
+                             force_saturnisme=True,
+                             force_pp=True)
     path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
     sarah_adresse.to_csv(path_output_adresse, index=False,
                                     encoding="utf8")
