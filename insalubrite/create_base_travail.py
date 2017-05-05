@@ -325,7 +325,7 @@ def add_pp(table, force=False):
     return table_pp
 
 
-def add_infos_niveau_adresse(tab):
+def add_infos_niveau_adresse(tab, force_all=False):
     tab1 = add_bspp(tab, force_all)
     tab2 = add_eau(tab1, force_all)
     tab3 = add_saturnisme(tab2, force_all)
@@ -334,7 +334,7 @@ def add_infos_niveau_adresse(tab):
     
 
 if __name__ == '__main__':
-    force_all = False
+    force_all = True
     sarah = sarah_data(force_all)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
 

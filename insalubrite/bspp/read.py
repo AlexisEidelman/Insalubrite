@@ -93,7 +93,7 @@ tab['ville'].value_counts()
 tab_paris = merge_df_to_ban(
     tab[tab['ville'] == 'PARIS'],
     os.path.join(path_bspp, 'temp.csv'),
-    ['voie','ville', 'code_postal'],
+    ['voie', 'code_postal'],
     name_postcode = 'code_postal',
     )
 
