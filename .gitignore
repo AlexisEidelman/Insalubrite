@@ -146,3 +146,4 @@ insalubrite/config_insal.py
 Insalubrite.Rproj
 *.RData
 .Rhistory
+*.dot
