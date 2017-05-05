@@ -87,6 +87,15 @@ def create_sarah_table():
     return sarah
 
 
+def sarah_data(force=False):
+    path_sarah = os.path.join(path_output, 'sarah_adresse.csv')
+    if not os.path.exists(path_sarah) or force:
+        print('**** Load : Sarah',)
+        sarah_data = create_sarah_table()
+        sarah_data.to_csv(path_affaires, encoding='utf8', index=False)
+    else:
+        sarah_data = pd.read_csv(path_sarah)
+    return sarah_data
 
 ########################################
 ###      Parcelle   et demandeurs    ###
@@ -162,6 +171,7 @@ def _read_adress_data(path_csv, module, force=False):
         print('**** Load :', module)
         importlib.import_module(module)
     return pd.read_csv(path_csv)
+
 
 def select(table_to_select):
     """
@@ -308,17 +318,10 @@ def add_pp(table, force=False):
     return table_pp
 
 
+
 if __name__ == '__main__':
     force_all = False
-
-    path_affaires = os.path.join(path_output, 'sarah_adresse.csv')
-    if not os.path.exists(path_affaires) or force_all:
-        data_sarah = create_sarah_table()
-        data_sarah.to_csv(path_affaires, encoding='utf8', index=False)
-    else:
-        data_sarah = pd.read_csv(path_affaires)
-
-    sarah = data_sarah.copy()
+    sarah = sarah_data(force_all)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
 
 
