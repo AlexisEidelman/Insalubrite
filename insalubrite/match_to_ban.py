@@ -60,7 +60,9 @@ def merge_df_to_ban(tab, path_csv, var_to_send,
         print("On sépare l'appel à l'API en", select.max() ,'parties')
         for k, part_tab in tab_to_ban.groupby(select):
             part_tab_ban = send_one_table(part_tab, path_csv, name_postcode)
-            tab_ban = tab_ban.append(part_tab_ban, ignore_index=True)
+            tab_ban = tab_ban.append(part_tab_ban)
+    else:
+        tab_ban = send_one_table(tab_to_ban, path_csv, name_postcode)
 
     assert len(tab_ban) == len(tab)
     return tab.merge(tab_ban)
