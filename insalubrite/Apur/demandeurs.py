@@ -32,6 +32,8 @@ explications = pd.read_excel(path_dem_2015, sheetname='t_occ')
 traduction = explications.set_index("Code du mode d'occupation")["Libellé du mode d'occupation"].to_dict()
 dem.rename(columns=traduction, inplace=True)
 
+del dem['---']
+dem.fillna(0, inplace=True)
 
 path_dem = os.path.join(path_output, 'demandeurs.csv')
 

@@ -345,10 +345,10 @@ if __name__ == '__main__':
 
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
-    sarah_augmentee_parcelle = sarah[['affaire_id', 'code_cadastre',
+    sarah_parcelle = sarah[['affaire_id', 'code_cadastre',
                                       'codeinsee',
                                       'infractiontype_id', 'titre']]
-    sarah_augmentee_parcelle = add_infos_parcelles(sarah_augmentee_parcelle)
+    sarah_augmentee_parcelle = add_infos_parcelles(sarah_parcelle)
 
     path_output_parcelle = os.path.join(path_output, 'niveau_parcelles.csv')
     sarah_augmentee_parcelle.to_csv(path_output_parcelle, index=False,
@@ -367,9 +367,9 @@ if __name__ == '__main__':
     sarah_adresse = add_infos_niveau_adresse(sarah_adresse,
                              force_all,
                              force_bspp=False,
-                             force_eau=True,
-                             force_saturnisme=True,
-                             force_pp=True)
+                             force_eau=False,
+                             force_saturnisme=False,
+                             force_pp=False)
     path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
     sarah_adresse.to_csv(path_output_adresse, index=False,
                                     encoding="utf8")
