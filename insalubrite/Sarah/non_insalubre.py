@@ -68,3 +68,21 @@ test.infractiontype_id.value_counts()
 # => il y a d'autres infraction lié à libre. Est-ce que 30 veut dire
 # Autres motifs (comme dans champs libre) ?
 
+
+### Idée 3: classement
+classement = read_table('classement')[['commentaire', 'compte_rendu_id']]
+# Les commentaires montre que parfois les travaux ont été réalisés.
+# => il y a eu besoin de faire des travaux, 
+# => le bâtiments était insalubre lors d'une visite précédente
+
+### Idée 4 : affaire avec infraction
+affaire = read_table('affhygiene')
+# on garde les affaires qui on donné lieu à une visite 
+# sinon comment savoir si c'est insalubre
+cr = read_table('cr_visite')
+affaire = affaire[affaire.affaire_id.isin(cr.affaire_id)]
+infraction = read_table('infraction')
+
+test = affaire.merge(infraction, on = 'affaire_id', how="left", indicator=True)
+# TODO: demander ce que sont ces infractions sans affaire_id
+
