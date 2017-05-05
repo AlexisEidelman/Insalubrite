@@ -33,7 +33,7 @@ def merge_df_to_ban(tab, path_csv, var_to_send,
                              name_postcode):
     '''retourne un DataFrame tab augmenté via
     https://adresse.data.gouv.fr/api-gestion'''
-    
+    tab[name_postcode] = tab[name_postcode].astype(int)
     tab[var_to_send].to_csv(
         path_csv, index=False, encoding='utf8'
         )
