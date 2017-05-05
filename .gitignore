@@ -144,3 +144,5 @@ $RECYCLE.BIN/
 insalubrite/config_insal.py
 .Rproj.user
 Insalubrite.Rproj
+*.RData
+.Rhistory

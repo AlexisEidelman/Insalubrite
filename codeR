@@ -8,9 +8,11 @@ library(FactoMineR)
 library(pscl)
 library(MASS)
 library(VGAM)
-data = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/base.csv")
-data_parcelle = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_parcelles.csv")
-data_adresse = read.csv("/Users/Benjamin/Documents/Cours ENSAE 2A/Stat app/niveau_adresses.csv")
+
+
+data = read.csv("D:/data/SARAH/output/sarah_adresse.csv")
+data_parcelle = read.csv("D:/data/SARAH/output/niveau_parcelles.csv")
+data_adresse = read.csv("D:/data/SARAH/output/niveau_adresses.csv")
 
 data$indic <- duplicated(data$affaire_id)
 data <- subset(data, data$indic == "FALSE")
