@@ -35,6 +35,9 @@ def etude_preliminaire():
  
     
 def mise_en_demeure_table():
+    """
+     Enrichit la table mise en demeure 
+    """
     mise_en_demeure = read_table('mise_en_demeure')
     mise_en_demeure.rename(columns={'id': 'mise_en_demeure_id'}, 
                            inplace=True)
@@ -66,6 +69,15 @@ def mise_en_demeure_table():
                                                                 how = 'left')
     
     return mise_en_demeure_augmentee
+
+def coherence_mise_en_demeure_Sarah():
+    table = mise_en_demeure_table()
+    # qu'est-ce-qu'une mise en demeure? 
+    # quand un locataire constate des sources d'insalubrité dans son logement
+    # il écrit une mise en demeure au propriétaire lui enjoignant de réparer
+    # les articles du RSD: règlement sanitaire du département 75 sont ici =>
+    # https://www.legifrance.gouv.fr/affichTexte.do?cidTexte=
+    #LEGITEXT000006070308&idArticle=LEGIARTI000006363876&dateTexte=20120223#LEGISCTA000006148949
 
 
 

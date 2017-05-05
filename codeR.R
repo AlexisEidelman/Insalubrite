@@ -9,10 +9,10 @@ library(pscl)
 library(MASS)
 library(VGAM)
 
-
 data = read.csv("D:/data/SARAH/output/sarah_adresse.csv")
 data_parcelle = read.csv("D:/data/SARAH/output/niveau_parcelles.csv")
 data_adresse = read.csv("D:/data/SARAH/output/niveau_adresses.csv")
+
 
 data$indic <- duplicated(data$affaire_id)
 data <- subset(data, data$indic == "FALSE")
