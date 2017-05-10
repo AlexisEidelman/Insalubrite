@@ -125,5 +125,5 @@ def add_adresse_id(table, indicator=False):
 
 if __name__ == '__main__':
     hyg = read_table('affhygiene')[['affaire_id', 'bien_id']]
-    adresse_par_affaires = adresse_max(hyg, indicator='origine')
+    adresse_par_affaires = add_adresse_id(hyg, indicator='origine')
 

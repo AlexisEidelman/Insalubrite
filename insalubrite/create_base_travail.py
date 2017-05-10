@@ -185,19 +185,70 @@ def select(table_to_select):
       Sélectionne les observations dont la date est antérieure aux dates de 
       affhygiene
     """
-    assert 'date'.isin(table_to_select.columns)
+    assert 'date_creation' in table_to_select.columns
     
-    #étape 1: préparer affhygiene
-    hyg = read_table('affhygiene')
-    cr = read_table('cr_visite')
-    hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
-    #étape 2: ajouter à table_to_select une colonne date provenant de affhygiene
-    table_selected = table_to_select.merge(hyg,
-                                           on = 'adresse',
+    #étape 1: préparer une table avec date et adresse
+    ## étape 1.1 : préparer la table avec date et affaire_id
+    def affaire():
+        cr = read_table('cr_visite')[['date_creation','affaire_id']]
+        assert cr.date_creation.notnull().sum() == len(cr)
+        #convert to datetime objects
+        cr['date_creation'] = cr['date_creation'].dt.strftime(date_format = '%d-%m-%Y')
+        cr['date_creation'] = pd.to_datetime(cr['date_creation'])
+        
+        hyg = read_table('affhygiene')[['affaire_id', 'bien_id']]
+        hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
+        hyg = hyg.merge(cr,
+                        on = 'affaire_id',
+                        how = 'left')
+        hyg = hyg.groupby('affaire_id').first().reset_index()
+        return hyg
+    affaire = affaire()
+    ## étape 1.2: ajouter les adresses correspondantes
+    affaire_with_adresse = add_adresse_id(affaire)
+    affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien','localhabite_id'],
+                              axis=1, 
+                              inplace=True
+                              )
+
+    adresse = adresses()[['adresse_id', 'typeadresse',
+        'libelle', 'codepostal', 'codeinsee', 'code_cadastre']]
+    sarah = affaire_with_adresse.merge(adresse, on = 'adresse_id',
+                                       how = 'left')
+
+    # on prend le code cadastre de l'adresse_id ou l'ancien (celui de bien_id)
+    # quand on n'a pas d'adresse
+    sarah['code_cadastre'] = sarah['code_cadastre_y']
+    
+    sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre'] = \
+        sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre_x']
+    sarah.drop(['code_cadastre_x', 'code_cadastre_y'], axis=1, inplace=True)
+
+
+    # match ban
+    match_possible = sarah['codepostal'].notnull() & sarah['libelle'].notnull()
+    sarah_adresse = sarah[match_possible]
+    sarah_adresse = merge_df_to_ban(sarah_adresse,
+                             os.path.join(path_output, 'temp.csv'),
+                             ['libelle', 'codepostal'],
+                             name_postcode = 'codepostal')
+    sarah = sarah_adresse.append(sarah[~match_possible])
+    sarah = sarah[['adresse_ban_id','date_creation']]
+    
+    #étape 2: ajouter à table_to_select une colonne date provenant de cr_visite
+    # en mergeant sur adresse
+    assert 'adresse_ban_id' in table_to_select.columns
+    table_selected = table_to_select.merge(sarah,
+                                           on = 'adresse_ban_id',
                                            how = 'left',
                                            indicator = True)
-    select_on_date = table_to_select.date < hyg.date
-    table_selected = table_selected.iloc[select_on_date]
+    
+    # étape 3: sélectionner les observations dont les dates sont antérieures
+    # aux inspections
+    assert 'date' in table_to_select.columns
+    select_on_date = table_to_select.date < sarah.date
+    table_selected = table_to_select.loc[select_on_date]
+    table_selected.drop('date_creation', axis = 1, inplace = True)
     return table_selected
     
     
