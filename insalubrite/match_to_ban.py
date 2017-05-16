@@ -53,19 +53,22 @@ def merge_df_to_ban(tab, path_csv, var_to_send,
     https://adresse.data.gouv.fr/api-gestion'''
     tab[name_postcode] = tab[name_postcode].astype(int)
     tab_to_ban = tab[var_to_send]
+    tab_to_ban.drop_duplicates(inplace=True)
     
     tab_ban = pd.DataFrame()
-    select = np.arange(len(tab))//10000
+    select = np.arange(len(tab_to_ban))//10000
     if select.max() > 1:
-        print("On sépare l'appel à l'API en", select.max() ,'parties')
+        print("On sépare l'appel à l'API en", select.max() + 1 ,'parties')
         for k, part_tab in tab_to_ban.groupby(select):
             part_tab_ban = send_one_table(part_tab, path_csv, name_postcode)
             tab_ban = tab_ban.append(part_tab_ban)
     else:
         tab_ban = send_one_table(tab_to_ban, path_csv, name_postcode)
 
-    assert len(tab_ban) == len(tab)
-    return tab.merge(tab_ban)
+    tab_output = tab.merge(tab_ban)
+    assert len(tab_output) == len(tab)
+    
+    return tab_output
 
 
 def look_for_unmatched(tab_with_ban):
