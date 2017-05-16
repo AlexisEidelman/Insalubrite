@@ -38,16 +38,36 @@ def _read_or_generate_data(path_csv, module, force=False):
         print('**** Load :', module)
         importlib.import_module(module)
     return pd.read_csv(path_csv)
-    
 
-def create_sarah_table():
+
+
+def table_affaire():
+    """  retourne la table avec date, adresse_id et affaire_id """
     hyg = read_table('affhygiene')
 
-    # on garde les affaires ayant déjà eu au moins une visite
     cr = read_table('cr_visite')
+
+    cr = read_table('cr_visite')[['date_creation','affaire_id']]
+    assert all(cr.date_creation.notnull())
+
+    # ne garde que la date (pas l'heure)
+    cr['date_creation'] = cr['date_creation'].dt.date
+    # on garde une seule date par affaire (la premiere)
+    cr = cr.groupby('affaire_id')['date_creation'].min().reset_index()
+
+    hyg = read_table('affhygiene')[['affaire_id', 'bien_id']]
+    # on garde les affaires ayant déjà eu au moins une visite
     hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
+    hyg = hyg.merge(cr,
+                    on = 'affaire_id',
+                    how = 'left')
+    return hyg
 
 
+def create_sarah_table():
+    hyg = table_affaire()
+
+    #### ajoute l'infraction
     infraction = read_table('infraction')[['affaire_id', 'infractiontype_id']]
     # on ne garde qu'une infraction maximum par affaire
     # en conservant la "plus grave"
@@ -62,40 +82,50 @@ def create_sarah_table():
 
     infraction = infraction.merge(infractiontype, on='infractiontype_id', how='left')
 
-
     affaire = hyg.merge(infraction, on = 'affaire_id', how="left")
-
-    affaire_with_adresse = add_adresse_id(affaire)
-    affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
-                               'localhabite_id', 'adresse_id_bien'],
-                               axis=1, inplace=True)
-
-    adresse = adresses()[['adresse_id', 'typeadresse',
-        'libelle', 'codepostal', 'codeinsee', 'code_cadastre']]
-    sarah = affaire_with_adresse.merge(adresse, on = 'adresse_id',
-                                       how = 'left')
-
-    # on prend le code cadastre de l'adresse_id ou l'ancien (celui de bien_id)
-    # quand on n'a pas d'adresse
-    sarah['code_cadastre'] = sarah['code_cadastre_y']
-    # quelques incohérence (516 sur 34122)
-    pb = sarah.loc[sarah['code_cadastre'].notnull(), 'code_cadastre'] != \
-        sarah.loc[sarah['code_cadastre'].notnull(), 'code_cadastre_x']
-
-    sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre'] = \
-        sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre_x']
-    sarah.drop(['code_cadastre_x', 'code_cadastre_y'], axis=1, inplace=True)
+    #### fin de l'ajout infraction
 
 
-    # match ban
-    match_possible = sarah['codepostal'].notnull() & sarah['libelle'].notnull()
-    sarah_adresse = sarah[match_possible]
-    sarah_adresse = merge_df_to_ban(sarah_adresse,
-                             os.path.join(path_output, 'temp.csv'),
-                             ['libelle', 'codepostal'],
-                             name_postcode = 'codepostal')
-    sarah = sarah_adresse.append(sarah[~match_possible])
+    ## étape 1.2: ajouter les adresses correspondantes
+    def affaire_avec_adresse(affaire):
+        affaire_with_adresse = add_adresse_id(affaire)
+        affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
+                                   'localhabite_id'],
+                                  axis=1,
+                                  inplace=True
+                                  )
+        affaire_with_adresse = affaire_with_adresse[
+                                    affaire_with_adresse.adresse_id.notnull()]
 
+        adresse = adresses()[['adresse_id', 'typeadresse',
+            'libelle', 'codepostal', 'codeinsee', 'code_cadastre']]
+
+        sarah = affaire_with_adresse.merge(adresse, on = 'adresse_id',
+                                           how = 'left')
+
+        # on prend le code cadastre de l'adresse_id ou l'ancien (celui de bien_id)
+        # quand on n'a pas d'adresse
+        sarah['code_cadastre'] = sarah['code_cadastre_y']
+        # quelques incohérence (516 sur 34122)
+        pb = sarah.loc[sarah['code_cadastre'].notnull(), 'code_cadastre'] != \
+            sarah.loc[sarah['code_cadastre'].notnull(), 'code_cadastre_x']
+
+        sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre'] = \
+            sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre_x']
+        sarah.drop(['code_cadastre_x', 'code_cadastre_y'], axis=1, inplace=True)
+
+
+        # match ban
+        match_possible = sarah['codepostal'].notnull() & sarah['libelle'].notnull()
+        sarah_adresse = sarah[match_possible]
+        sarah_adresse = merge_df_to_ban(sarah_adresse,
+                                 os.path.join(path_output, 'temp.csv'),
+                                 ['libelle', 'codepostal'],
+                                 name_postcode = 'codepostal')
+        sarah = sarah_adresse.append(sarah[~match_possible])
+        return sarah
+
+    sarah = affaire_avec_adresse(affaire)
     return sarah
 
 
@@ -123,7 +153,7 @@ def infos_parcelles():
 
     # demandeur
     path_dem = os.path.join(path_output, 'demandeurs.csv')
-    demandeurs = pd.read_csv(path_dem)
+    demandeurs = _read_or_generate_data(path_dem, 'insalubrite.Apur.demandeurs')
     # on ne garde qu'une valeur par ASP, celle la plus récente
     demandeurs = demandeurs[~demandeurs['ASP'].duplicated(keep='first')]
 
@@ -180,153 +210,41 @@ def add_infos_parcelles(table):
 
 
 
-def _select_on_date(table_to_select, date_feature_name):
+def _select_on_date(table_ini, table_ref, date_name='date', year_only=False):
     """
-      Sélectionne les observations dont la date est antérieure aux dates de 
+      Sélectionne les observations dont la date est antérieure aux dates de
       sarah
+      - table_ini est la table dont on veut séléctionner les valeurs
+      - date_name est le nom de la variable date dans cette table
+      - table_ref est la table qui contient les adresses et dates de référence
     """
-    
-    #étape 1: préparer une table avec date et adresse
-    ## étape 1.1 : préparer la table avec date, adresse_id et affaire_id
-    def affaire():
-        cr = read_table('cr_visite')[['date_creation','affaire_id']]
-        assert cr.date_creation.notnull().sum() == len(cr)
-        #convert to datetime objects
-        cr['date_creation'] = cr['date_creation'].dt.strftime(date_format =\ 
-                                                                  '%d-%m-%Y')
-        cr['date_creation'] = pd.to_datetime(cr['date_creation'])
-        
-        hyg = read_table('affhygiene')[['affaire_id', 'bien_id']]
-        hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
-        hyg = hyg.merge(cr,
-                        on = 'affaire_id',
-                        how = 'left')
-        hyg = hyg.groupby('affaire_id').first().reset_index()
-        return hyg
-    affaire = affaire()
-    ## étape 1.2: ajouter les adresses correspondantes
-    def affaire_avec_adresse():
-        affaire_with_adresse = add_adresse_id(affaire)
-        affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
-                                   'localhabite_id'],
-                                  axis=1, 
-                                  inplace=True
-                                  )
-        affaire_with_adresse = affaire_with_adresse[\
-                                    affaire_with_adresse.adresse_id.notnull()]
-        adresse = adresses()[['adresse_id','libelle', 'codepostal', 'codeinsee']]
-        sarah = affaire_with_adresse.merge(adresse, on = 'adresse_id',
-                                           how = 'left')
-        ###match ban
-        match_possible = sarah['codepostal'].notnull() & sarah['libelle'].notnull()
-        sarah_adresse = sarah[match_possible]
-        sarah_adresse = merge_df_to_ban(sarah_adresse,
-                                 os.path.join(path_output, 'temp.csv'),
-                                 ['libelle', 'codepostal'],
-                                 name_postcode = 'codepostal')
-        sarah = sarah_adresse.append(sarah[~match_possible])
-        sarah = sarah[['adresse_ban_id','date_creation']]
-        sarah = sarah[sarah.adresse_ban_id.notnull()]
-        return sarah
-    sarah = affaire_avec_adresse()
-    
-    #étape 2: ajouter à table_to_select une colonne date provenant de hyg
-    # en mergeant sur adresse
-    assert 'adresse_ban_id' in table_to_select.columns
-    table_to_select_with_date = table_to_select.merge(sarah,
+    assert 'adresse_ban_id' in table_ini.columns
+    assert date_name in table_ini.columns
+    assert 'adresse_ban_id' in table_ref.columns
+    assert 'date_creation' in table_ref.columns
+    assert 'date_creation' not in table_ini.columns
+
+    table_ref
+    merge_on_adresse = table_ini.merge(table_ref,
                                            on = 'adresse_ban_id',
                                            how = 'left',
                                            indicator = True)
-    
+
     # étape 3: sélectionner les observations dont les dates sont antérieures
-    # aux inspections
-    assert date_feature_name in table_to_select_with_date.columns
-    #convert to datetime objects
-    #table_to_select[date_feature_name] = table_to_select[date_feature_name
-    #                ].dt.strftime(date_format = '%d-%m-%Y')
-    table_to_select_with_date[date_feature_name] = \
-                    pd.to_datetime(table_to_select_with_date[date_feature_name])
-        
-    select_on_date = table_to_select_with_date[date_feature_name] <= \
-                                    table_to_select_with_date['date_creation']
-    table_selected = table_to_select_with_date.loc[select_on_date]
+    merge_on_adresse['date_creation'] = pd.to_datetime(merge_on_adresse['date_creation'])
+    if year_only:        
+        select_on_date = merge_on_adresse[date_name] <  \
+            merge_on_adresse['date_creation'].dt.year
+    else:
+        merge_on_adresse[date_name] = pd.to_datetime(merge_on_adresse[date_name])
+        select_on_date = merge_on_adresse[date_name] < merge_on_adresse['date_creation']
+
+    table_selected = merge_on_adresse.loc[select_on_date]
     table_selected.drop('date_creation', axis = 1, inplace = True)
     return table_selected
 
-def _select_on_year(table_to_select, year_feature_name):
-    """
-      Sélectionne les observations dont l'année est antérieure aux dates de 
-      sarah
-    """
-    
-    #étape 1: préparer une table avec date et adresse
-    ## étape 1.1 : préparer la table avec date, adresse_id et affaire_id
-    def affaire():
-        cr = read_table('cr_visite')[['date_creation','affaire_id']]
-        assert cr.date_creation.notnull().sum() == len(cr)
-        #convert to yeartime objects
-        cr['year_creation'] = cr['date_creation'].dt.strftime(date_format = '%Y')
-        cr['year_creation'] = pd.to_datetime(cr['year_creation'])
-        cr.drop('date_creation', axis = 1, inplace = True)
-        
-        hyg = read_table('affhygiene')[['affaire_id', 'bien_id']]
-        hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
-        hyg = hyg.merge(cr,
-                        on = 'affaire_id',
-                        how = 'left')
-        hyg = hyg.groupby('affaire_id').first().reset_index()
-        return hyg
-    affaire = affaire()
-    ## étape 1.2: ajouter les adresses correspondantes
-    def affaire_avec_adresse():
-        affaire_with_adresse = add_adresse_id(affaire)
-        affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
-                                   'localhabite_id'],
-                                  axis=1, 
-                                  inplace=True
-                                  )
-        affaire_with_adresse = affaire_with_adresse[\
-                affaire_with_adresse.adresse_id.notnull()]
-        adresse = adresses()[['adresse_id','libelle', 'codepostal', 'codeinsee']]
-        sarah = affaire_with_adresse.merge(adresse, on = 'adresse_id',
-                                           how = 'left')
-        ###match ban
-        match_possible = sarah['codepostal'].notnull() & sarah['libelle'].notnull()
-        sarah_adresse = sarah[match_possible]
-        sarah_adresse = merge_df_to_ban(sarah_adresse,
-                                 os.path.join(path_output, 'temp.csv'),
-                                 ['libelle', 'codepostal'],
-                                 name_postcode = 'codepostal')
-        sarah = sarah_adresse.append(sarah[~match_possible])
-        sarah = sarah[['adresse_ban_id','year_creation']]
-        sarah = sarah[sarah.adresse_ban_id.notnull()]
-        return sarah
-    sarah = affaire_avec_adresse()
-    
-    #étape 2: ajouter à table_to_select une colonne date provenant de hyg
-    # en mergeant sur adresse
-    assert 'adresse_ban_id' in table_to_select.columns
-    table_to_select_with_date = table_to_select.merge(sarah,
-                                           on = 'adresse_ban_id',
-                                           how = 'left',
-                                           indicator = True)
-    
-    # étape 3: sélectionner les observations dont les dates sont antérieures
-    # aux inspections
-    assert year_feature_name in table_to_select_with_date.columns
-    #convert to datetime objects
-    #table_to_select[date_feature_name] = table_to_select[date_feature_name
-    #                ].dt.strftime(date_format = '%d-%m-%Y')
-    table_to_select_with_date[year_feature_name] = \
-                    pd.to_datetime(table_to_select_with_date[year_feature_name])
-        
-    select_on_date = table_to_select_with_date[year_feature_name] <= \
-                                    table_to_select_with_date['year_creation']
-    table_selected = table_to_select_with_date.loc[select_on_date]
-    table_selected.drop('year_creation', axis = 1, inplace = True)
-    return table_selected
-    
-    
+
+
 ###########################
 ###         BSPP        ###
 ###########################
@@ -345,7 +263,7 @@ def add_bspp(table, force=False):
 
     ### Fusion des données
     bspp = bspp[bspp.adresse_ban_id.isin(table.adresse_ban_id)]
-    bspp = _select_on_date(bspp, date_feature_name='Date_intervention')
+    bspp = _select_on_date(bspp, table, date_name='Date_intervention')
 
     # simplification => on ne tient pas compte de la date.
     # on utilise un nombre d'intervention par type
@@ -357,6 +275,8 @@ def add_bspp(table, force=False):
                        right_index=True,
                        how='outer',
                        indicator='match_bspp')
+
+
     assert all(table_bspp['match_bspp'] != 'right_only')
     del table_bspp['match_bspp']
 
@@ -381,7 +301,7 @@ def add_eau(table, force=False):
         force=force,
         )
     eau = eau[~eau['adresse_ban_id'].duplicated(keep='last')]
-    eau = _select_on_year(eau, year_feature_name='eau_annee_source')
+    eau = _select_on_date(eau, table, date_name='eau_annee_source', year_only=True)
 
     table_eau = table.merge(eau[['adresse_ban_id', 'eau_annee_source']],
                        how='outer',
@@ -414,7 +334,7 @@ def add_saturnisme(table, force=False):
     sat['Type_saturnisme'] = sat['Type'] # rename moche
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
     sat = sat[~sat['adresse_ban_id'].duplicated(keep='last')]
-    sat = _select_on_date(sat, date_feature_name='Date de réalisation')
+    sat = _select_on_date(sat, table, date_name='Date de réalisation')
 
     table_sat = table.merge(sat[['adresse_ban_id', 'sat_annee_source', 'Type_saturnisme']],
                             on='adresse_ban_id',
@@ -461,18 +381,20 @@ def add_infos_niveau_adresse(tab, force_all=False,
                              force_saturnisme=False,
                              force_pp=False):
     tab1 = add_bspp(tab, force_all or force_bspp)
+    assert len(tab1) == len(tab)
     tab2 = add_eau(tab1, force_all or force_eau)
+    assert len(tab2) == len(tab)
     tab3 = add_saturnisme(tab2, force_all or force_saturnisme)
-    tab4 = add_pp(tab3, force_all or force_pp)    
+    assert len(tab3) == len(tab)
+    tab4 = add_pp(tab3, force_all or force_pp)
+    assert len(tab4) == len(tab)
     return tab4
-    
+
 
 if __name__ == '__main__':
     force_all = False
     sarah = sarah_data(force_all)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
-
-
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
     sarah_parcelle = sarah[['affaire_id', 'code_cadastre',
@@ -492,16 +414,16 @@ if __name__ == '__main__':
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
     sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
                                    'infractiontype_id', 'titre',
-                                   'code_cadastre']]
+                                   'code_cadastre', 'date_creation']]
 
-    sarah_adresse = add_infos_niveau_adresse(sarah_adresse,
+    sarah_final = add_infos_niveau_adresse(sarah_adresse,
                              force_all,
                              force_bspp=False,
                              force_eau=False,
                              force_saturnisme=False,
                              force_pp=False)
     path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
-    sarah_adresse.to_csv(path_output_adresse, index=False,
+    sarah_final.to_csv(path_output_adresse, index=False,
                                     encoding="utf8")
 
 
