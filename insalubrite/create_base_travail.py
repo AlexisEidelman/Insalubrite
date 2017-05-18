@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 Created on Wed Mar 29 10:08:58 2017
 
 Ce programme crée la base de travail. Il se sert du travail
@@ -17,13 +17,13 @@ Ensuite, il va chercher les éléments des autres sources
 pour enrichir la base. Pour l'instant, on utilise:
 
     - BSPP
-
-"""
+'''
 
 
 import os
 import importlib
 import pandas as pd
+import numpy as np
 
 from insalubrite.Sarah.read import read_table
 from insalubrite.Sarah.adresses import parcelles, adresses
@@ -43,10 +43,6 @@ def _read_or_generate_data(path_csv, module, force=False):
 
 def table_affaire():
     """  retourne la table avec date, adresse_id et affaire_id """
-    hyg = read_table('affhygiene')
-
-    cr = read_table('cr_visite')
-
     cr = read_table('cr_visite')[['date_creation','affaire_id']]
     assert all(cr.date_creation.notnull())
 
@@ -57,11 +53,11 @@ def table_affaire():
 
     hyg = read_table('affhygiene')[['affaire_id', 'bien_id']]
     # on garde les affaires ayant déjà eu au moins une visite
-    hyg = hyg[hyg.affaire_id.isin(cr.affaire_id)]
     hyg = hyg.merge(cr,
                     on = 'affaire_id',
-                    how = 'left')
+                    how = 'right')
     return hyg
+
 
 
 def create_sarah_table():
@@ -86,7 +82,7 @@ def create_sarah_table():
     #### fin de l'ajout infraction
 
 
-    ## étape 1.2: ajouter les adresses correspondantes
+    ###ajout adresses correspondantes
     def affaire_avec_adresse(affaire):
         affaire_with_adresse = add_adresse_id(affaire)
         affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
@@ -126,6 +122,7 @@ def create_sarah_table():
         return sarah
 
     sarah = affaire_avec_adresse(affaire)
+    ###fin ajout adresses correspondantes
     return sarah
 
 
@@ -205,15 +202,15 @@ def add_infos_parcelles(table):
 
 
 ######################################################
-###         travail au niveau adresse       ###
+###         travail au niveau date       ###
 ######################################################
 
 
 
 def _select_on_date(table_ini, table_ref, date_name='date', year_only=False):
     """
-      Sélectionne les observations dont la date est antérieure aux dates de
-      sarah
+      Sélectionne les observations de table_ini dont la date est antérieure 
+      aux dates de table_ref
       - table_ini est la table dont on veut séléctionner les valeurs
       - date_name est le nom de la variable date dans cette table
       - table_ref est la table qui contient les adresses et dates de référence
@@ -224,14 +221,15 @@ def _select_on_date(table_ini, table_ref, date_name='date', year_only=False):
     assert 'date_creation' in table_ref.columns
     assert 'date_creation' not in table_ini.columns
 
-    table_ref
-    merge_on_adresse = table_ini.merge(table_ref,
-                                           on = 'adresse_ban_id',
-                                           how = 'left',
-                                           indicator = True)
+    merge_on_adresse = table_ini.merge(table_ref[['adresse_ban_id','date_creation']],
+                                       on = 'adresse_ban_id',
+                                       how = 'left',
+    #                                   indicator = True,
+                                       )
 
     # étape 3: sélectionner les observations dont les dates sont antérieures
     merge_on_adresse['date_creation'] = pd.to_datetime(merge_on_adresse['date_creation'])
+    merge_on_adresse[date_name] = pd.to_datetime(merge_on_adresse[date_name])
     if year_only:        
         select_on_date = merge_on_adresse[date_name] <  \
             merge_on_adresse['date_creation'].dt.year
@@ -239,9 +237,9 @@ def _select_on_date(table_ini, table_ref, date_name='date', year_only=False):
         merge_on_adresse[date_name] = pd.to_datetime(merge_on_adresse[date_name])
         select_on_date = merge_on_adresse[date_name] < merge_on_adresse['date_creation']
 
-    table_selected = merge_on_adresse.loc[select_on_date]
-    table_selected.drop('date_creation', axis = 1, inplace = True)
-    return table_selected
+    merge_on_adresse.loc[~select_on_date, date_name] = np.nan
+    merge_on_adresse.drop('date_creation', axis = 1, inplace = True)
+    return merge_on_adresse
 
 
 
@@ -263,24 +261,35 @@ def add_bspp(table, force=False):
 
     ### Fusion des données
     bspp = bspp[bspp.adresse_ban_id.isin(table.adresse_ban_id)]
-    bspp = _select_on_date(bspp, table, date_name='Date_intervention')
 
-    # simplification => on ne tient pas compte de la date.
-    # on utilise un nombre d'intervention par type
-    bspp = pd.crosstab(bspp.adresse_ban_id, bspp.Libelle_Motif)
-    bspp_columns =  bspp.columns
+    # trouver les intervention par affaire
+    merge_bspp = table[['affaire_id','adresse_ban_id','date_creation']].merge(bspp,
+                       how='inner',
+                       on='adresse_ban_id',
+    #                   indicator='match_bspp',
+                       )
+    
+    select_on_date = merge_bspp['Date_intervention'] <  \
+            merge_bspp['date_creation']
+       
+    merge_bspp = merge_bspp[select_on_date]
+    
+    bspp_by_affaire = pd.crosstab(merge_bspp.affaire_id, merge_bspp.Libelle_Motif)
 
-    table_bspp = table.merge(bspp,
-                       left_on='adresse_ban_id',
+    bspp_by_affaire_columns =  bspp_by_affaire.columns
+
+    table_bspp = table.merge(bspp_by_affaire,
+                       left_on='affaire_id',
                        right_index=True,
-                       how='outer',
-                       indicator='match_bspp')
+                       how='left',
+    #                   indicator='match_bspp',
+                       )
 
-
-    assert all(table_bspp['match_bspp'] != 'right_only')
-    del table_bspp['match_bspp']
-
-    table_bspp[bspp_columns] = table_bspp[bspp_columns].fillna(0)
+    #assert all(table_bspp['match_bspp'] != 'right_only')
+    #del table_bspp['match_bspp']
+    
+    #Travail sur les valeurs manquantes
+    table_bspp[bspp_by_affaire_columns] = table_bspp[bspp_by_affaire_columns].fillna(0)
     return table_bspp
 
 
@@ -301,21 +310,25 @@ def add_eau(table, force=False):
         force=force,
         )
     eau = eau[~eau['adresse_ban_id'].duplicated(keep='last')]
-    eau = _select_on_date(eau, table, date_name='eau_annee_source', year_only=True)
 
     table_eau = table.merge(eau[['adresse_ban_id', 'eau_annee_source']],
-                       how='outer',
+                       how='left',
                        on='adresse_ban_id',
-                       indicator='match_eau')
-    table_eau['match_eau'].value_counts()
+    #                   indicator='match_eau',
+                       )
+    #table_eau['match_eau'].value_counts()
 
-    table_eau['eau_annee_source'].value_counts(dropna=False)
+    #table_eau['eau_annee_source'].value_counts(dropna=False)
     # on rate des adresses de eau  #TODO: étudier
-    pb = table_eau[table_eau['match_eau'] == 'right_only']
+   
     #TODO: quelques nouveaux cas parce que des fusions
-    # TODO: récupérer la date pour vérifier qu'on est avant la visite
-    table_eau = table_eau[table_eau['match_eau'] != 'right_only']
-    del table_eau['match_eau']
+    table_eau['date_creation'] = pd.to_datetime(table_eau['date_creation'])
+    select_on_date = table_eau['eau_annee_source'] <  \
+            table_eau['date_creation'].dt.year
+
+    table_eau.loc[~select_on_date,'eau_annee_source'] = np.nan
+
+    #table_selected.drop('date_creation', axis = 1, inplace = True)
     return table_eau
 
 ###########################
@@ -331,25 +344,40 @@ def add_saturnisme(table, force=False):
         'insalubrite.Apur.saturnisme',
         force=force,
         )
-    sat['Type_saturnisme'] = sat['Type'] # rename moche
+    sat.rename(columns = {'Type':'Type_saturnisme',
+                          'Date de réalisation':'realisation_saturnisme'},
+               inplace = True)
+    
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
     sat = sat[~sat['adresse_ban_id'].duplicated(keep='last')]
-    sat = _select_on_date(sat, table, date_name='Date de réalisation')
 
-    table_sat = table.merge(sat[['adresse_ban_id', 'sat_annee_source', 'Type_saturnisme']],
+    table_sat = table.merge(sat[['adresse_ban_id', 'sat_annee_source',
+                                 'realisation_saturnisme','Type_saturnisme']],
                             on='adresse_ban_id',
-                            how='outer',
-                            indicator='match_sat')
+                            how='left',
+    #                        indicator='match_sat',
+                            )
 
     table_sat['sat_annee_source'].value_counts(dropna=False)
+    table_sat['realisation_saturnisme'].value_counts(dropna=False)
+    #25985/29753 = 87% de dates non remplies
+    
     # on rate des adresses de sat  #TODO: étudier
     # TODO: récupérer la date
     # TODO: récupérer la date pour vérifier qu'on est avant la visite
+    table_sat['date_creation'] = pd.to_datetime(table_sat['date_creation'])
+    table_sat['realisation_saturnisme'] = pd.to_datetime(table_sat['realisation_saturnisme'])
+    select_on_date = table_sat['realisation_saturnisme'] <  \
+            table_sat['date_creation']
+    #TODO: les autres variables à nan
+    
+    table_sat.loc[~select_on_date,'realisation_saturnisme'] = np.nan
 
-    table_sat = table_sat[table_sat['match_sat'] != "right_only"]
-    del table_sat['match_sat']
     return table_sat
 
+############################
+### Préfecture de Police ###
+###########################
 
 def add_pp(table, force=False):
     pp = _read_or_generate_data(
@@ -398,8 +426,7 @@ if __name__ == '__main__':
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
     sarah_parcelle = sarah[['affaire_id', 'code_cadastre',
-                                      'codeinsee',
-                                      'infractiontype_id', 'titre']]
+                            'codeinsee','infractiontype_id', 'titre']]
     sarah_augmentee_parcelle = add_infos_parcelles(sarah_parcelle)
 
     path_output_parcelle = os.path.join(path_output, 'niveau_parcelles.csv')
