@@ -173,7 +173,10 @@ def infos_parcelles():
     del parcelle_augmentee['_merge']
 
     parcelle_augmentee['hotel meublé'].fillna(False, inplace=True)
-    return parcelle_augmentee
+
+    # si on n'a pas de demandeurs alros, on a pas fusionné avec parcelles,
+    # il faut mettre à O
+    return parcelle_augmentee.fillna(0)
 
 
 
@@ -227,9 +230,9 @@ def add_bspp(table, force=False):
     merge_bspp['Date_intervention'] = pd.to_datetime(merge_bspp['Date_intervention'])
     select_on_date = merge_bspp['Date_intervention'] <  \
             merge_bspp['date_creation']
-       
+
     merge_bspp = merge_bspp[select_on_date]
-    
+
     bspp_by_affaire = pd.crosstab(merge_bspp.affaire_id, merge_bspp.Libelle_Motif)
 
     bspp_by_affaire_columns =  bspp_by_affaire.columns
@@ -271,14 +274,15 @@ def add_eau(table, force=False):
     #                   indicator='match_eau',
                        )
     # on rate des adresses de eau  #TODO: étudier
-   
+
     #TODO: quelques nouveaux cas parce que des fusions
     table_eau['date_creation'] = pd.to_datetime(table_eau['date_creation'])
     select_on_date = table_eau['eau_annee_source'] <  \
             table_eau['date_creation'].dt.year
 
     table_eau.loc[~select_on_date,'eau_annee_source'] = np.nan
-
+    table['eau'] = table_eau['eau_annee_source'].notnull()
+    del table_eau['eau_annee_source']
     #table_eau.drop('date_creation', axis = 1, inplace = True)
     return table_eau
 
@@ -298,7 +302,7 @@ def add_saturnisme(table, force=False):
     sat.rename(columns = {'Type':'Type_saturnisme',
                           'Date de réalisation':'realisation_saturnisme'},
                inplace = True)
-    
+
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
     sat = sat[~sat['adresse_ban_id'].duplicated(keep='last')]
 
@@ -308,17 +312,19 @@ def add_saturnisme(table, force=False):
                             how='left',
     #                        indicator='match_sat',
                             )
-    
+
     # on rate des adresses de sat  #TODO: étudier
 
     table_sat['date_creation'] = pd.to_datetime(table_sat['date_creation'])
     table_sat['realisation_saturnisme'] = pd.to_datetime(table_sat['realisation_saturnisme'])
     select_on_date = table_sat['realisation_saturnisme'] <  \
             table_sat['date_creation']
-    
+
     table_sat.loc[~select_on_date,['sat_annee_source','realisation_saturnisme',
                   'Type_saturnisme']] = np.nan
 
+    table_sat['Type_saturnisme'].fillna('pas de saturnisme connu')
+    del table_sat['sat_annee_source']
     return table_sat
 
 ############################
@@ -366,7 +372,7 @@ def add_infos_niveau_adresse(tab, force_all=False,
 
 
 if __name__ == '__main__':
-    force_all = True
+    force_all = False
     sarah = sarah_data(force_all)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
@@ -395,8 +401,8 @@ if __name__ == '__main__':
                              force_eau=False,
                              force_saturnisme=False,
                              force_pp=False)
+
     path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
     sarah_final.to_csv(path_output_adresse, index=False,
                                     encoding="utf8")
-
 
