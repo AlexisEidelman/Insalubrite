@@ -323,7 +323,7 @@ def add_saturnisme(table, force=False):
     table_sat.loc[~select_on_date,['sat_annee_source','realisation_saturnisme',
                   'Type_saturnisme']] = np.nan
 
-    table_sat['Type_saturnisme'].fillna('pas de saturnisme connu')
+    table_sat['Type_saturnisme'].fillna('pas de saturnisme connu', inplace=True)
     del table_sat['sat_annee_source']
     return table_sat
 
@@ -352,6 +352,7 @@ def add_pp(table, force=False):
     # TODO: récupérer la date pour vérifier qu'on est avant la visite
     table_pp = table_pp[table_pp['match_pp'] != "right_only"]
     del table_pp['match_pp']
+    table_pp['dossier prefecture'].fillna('Pas de dossier', inplace=True)
     return table_pp
 
 
