@@ -117,9 +117,19 @@ def create_sarah_table(cols_from_bien_id=None):
         sarah_adresse = merge_df_to_ban(sarah_adresse,
                                  os.path.join(path_output, 'temp.csv'),
                                  ['libelle', 'codepostal'],
-                                 name_postcode = 'codepostal')
+                                 name_postcode = 'codepostal',
+                                 var_ban_to_keep =
+                                     ['result_label', 'result_score',
+                                      'result_id', 'result_type',
+                                      'latitude', 'longitude']
+                                 )
+        # on garde latitude et longitude pour en trouver les iris
+
         sarah = sarah_adresse.append(sarah[~match_possible])
         return sarah
+
+
+
 
     sarah = affaire_avec_adresse(affaire, cols_from_bien_id)
     ###fin ajout adresses correspondantes
@@ -374,14 +384,14 @@ def add_infos_niveau_adresse(tab, force_all=False,
 
 if __name__ == '__main__':
     force_all = False
-    
+
     # colonne_en_plus, c'est les colonnes associée à des adresses
     # que l'on va chercher dans sarah, elles ne sont pas forcément
     # exploitable opérationnellement puisqu'on ne les a peut-être pas
     # avant la visite.
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
-    
+
     sarah = sarah_data(False, cols_from_bien_id=colonnes_en_plus)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
@@ -402,7 +412,7 @@ if __name__ == '__main__':
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
     sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
                                    'infractiontype_id', 'titre',
-                                   'code_cadastre', 'date_creation'] + 
+                                   'code_cadastre', 'date_creation'] +
                                    colonnes_en_plus]
 
     sarah_final = add_infos_niveau_adresse(sarah_adresse,
