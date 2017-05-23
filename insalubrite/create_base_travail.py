@@ -83,8 +83,8 @@ def create_sarah_table(cols_from_bien_id=None):
 
 
     ###ajout adresses correspondantes
-    def affaire_avec_adresse(affaire, cols_from_bien_id=None):
-        affaire_with_adresse = add_adresse_id(affaire, cols_from_bien_id)
+    def affaire_avec_adresse(affaire, _cols_from_bien_id=None):
+        affaire_with_adresse = add_adresse_id(affaire, _cols_from_bien_id)
         affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
                                    'localhabite_id'],
                                   axis=1,
@@ -121,7 +121,7 @@ def create_sarah_table(cols_from_bien_id=None):
         sarah = sarah_adresse.append(sarah[~match_possible])
         return sarah
 
-    sarah = affaire_avec_adresse(affaire)
+    sarah = affaire_avec_adresse(affaire, cols_from_bien_id)
     ###fin ajout adresses correspondantes
     return sarah
 
@@ -375,10 +375,14 @@ def add_infos_niveau_adresse(tab, force_all=False,
 if __name__ == '__main__':
     force_all = False
     
-    sarah = sarah_data(force_all, cols_from_bien_id=['possedecaves',
-                                                     'mode_entree_batiment',
-                                                     'hauteur_facade',
-                                                     'copropriete'])
+    # colonne_en_plus, c'est les colonnes associée à des adresses
+    # que l'on va chercher dans sarah, elles ne sont pas forcément
+    # exploitable opérationnellement puisqu'on ne les a peut-être pas
+    # avant la visite.
+    colonnes_en_plus = ['possedecaves','mode_entree_batiment',
+                        'hauteur_facade', 'copropriete']
+    
+    sarah = sarah_data(False, cols_from_bien_id=colonnes_en_plus)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
@@ -398,7 +402,8 @@ if __name__ == '__main__':
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
     sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
                                    'infractiontype_id', 'titre',
-                                   'code_cadastre', 'date_creation']]
+                                   'code_cadastre', 'date_creation'] + 
+                                   colonnes_en_plus]
 
     sarah_final = add_infos_niveau_adresse(sarah_adresse,
                              force_all,
