@@ -29,12 +29,13 @@ def csv_to_ban(path_csv, name_postcode=''):
     return pd.read_csv(StringIO(r.content.decode('UTF-8')))
 
 
-def send_one_table(tab, path_csv, name_postcode):
+def send_one_table(tab, path_csv, name_postcode, 
+                   var_ban_to_keep = ['result_label', 'result_score', 'result_id', 'result_type']):
     tab.to_csv(
         path_csv, index=False, encoding='utf8'
         )
     tab_ban = csv_to_ban(path_csv, name_postcode)
-    tab_ban = tab_ban[['result_label', 'result_score', 'result_id', 'result_type']]
+    tab_ban = tab_ban[var_ban_to_keep]
     tab_ban.set_index(tab.index, inplace=True)   
     tab_ban.rename(columns = {
         'result_label':'adresse_ban',
@@ -48,7 +49,8 @@ def send_one_table(tab, path_csv, name_postcode):
 
 
 def merge_df_to_ban(tab, path_csv, var_to_send,
-                             name_postcode):
+                             name_postcode, 
+                             var_ban_to_keep = ['result_label', 'result_score', 'result_id', 'result_type']):
     '''retourne un DataFrame tab augmenté via
     https://adresse.data.gouv.fr/api-gestion'''
     tab[name_postcode] = tab[name_postcode].astype(int)
@@ -63,7 +65,7 @@ def merge_df_to_ban(tab, path_csv, var_to_send,
             part_tab_ban = send_one_table(part_tab, path_csv, name_postcode)
             tab_ban = tab_ban.append(part_tab_ban)
     else:
-        tab_ban = send_one_table(tab_to_ban, path_csv, name_postcode)
+        tab_ban = send_one_table(tab_to_ban, path_csv, name_postcode, var_ban_to_keep)
 
     tab_output = tab.merge(tab_ban)
     assert len(tab_output) == len(tab)
