@@ -60,7 +60,7 @@ def table_affaire():
 
 
 
-def create_sarah_table():
+def create_sarah_table(cols_from_bien_id=None):
     hyg = table_affaire()
 
     #### ajoute l'infraction
@@ -83,8 +83,8 @@ def create_sarah_table():
 
 
     ###ajout adresses correspondantes
-    def affaire_avec_adresse(affaire):
-        affaire_with_adresse = add_adresse_id(affaire)
+    def affaire_avec_adresse(affaire, cols_from_bien_id=None):
+        affaire_with_adresse = add_adresse_id(affaire, cols_from_bien_id)
         affaire_with_adresse.drop(['adresse_id_sign', 'adresse_id_bien',
                                    'localhabite_id'],
                                   axis=1,
@@ -126,11 +126,11 @@ def create_sarah_table():
     return sarah
 
 
-def sarah_data(force=False):
+def sarah_data(force=False, cols_from_bien_id=None):
     path_sarah = os.path.join(path_output, 'sarah_adresse.csv')
     if not os.path.exists(path_sarah) or force:
         print('**** Load : Sarah',)
-        sarah_data = create_sarah_table()
+        sarah_data = create_sarah_table(cols_from_bien_id)
         sarah_data.to_csv(path_sarah, encoding='utf8', index=False)
     else:
         sarah_data = pd.read_csv(path_sarah)
@@ -374,7 +374,11 @@ def add_infos_niveau_adresse(tab, force_all=False,
 
 if __name__ == '__main__':
     force_all = False
-    sarah = sarah_data(force_all)
+    
+    sarah = sarah_data(force_all, cols_from_bien_id=['possedecaves',
+                                                     'mode_entree_batiment',
+                                                     'hauteur_facade',
+                                                     'copropriete'])
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée

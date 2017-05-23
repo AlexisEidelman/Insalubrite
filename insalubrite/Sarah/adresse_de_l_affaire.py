@@ -70,7 +70,7 @@ def coherence_adresses_via_signalement_et_via_bien_id():
 
     ## => quand c'est matché, ça marche !!
 
-def add_adresse_id(table, indicator=False):
+def add_adresse_id(table, cols_from_bien_id=None, indicator=False):
     '''
        Extrait le maximum d'adresse_id en passant via bien_id ou via signalement
        indicator à la même fonction que dans la fonction merge de pandas
@@ -92,7 +92,12 @@ def add_adresse_id(table, indicator=False):
     assert table_signalement['affaire_id'].value_counts().max() == 1
 
     var_to_merge_on = table.columns.tolist()
-    table_bien_id = table_bien_id[var_to_merge_on + ['adresse_id', 'code_cadastre']]
+    cols_bien_id = var_to_merge_on + ['adresse_id', 'code_cadastre']
+    if cols_from_bien_id:
+        assert all([x not in var_to_merge_on for x in cols_from_bien_id])
+        cols_bien_id += cols_from_bien_id
+    table_bien_id = table_bien_id[cols_bien_id]
+
     table_signalement = table_signalement[var_to_merge_on + ['adresse_id']]
     table_adresses_max = table_bien_id.merge(table_signalement,
                                 on = var_to_merge_on,
