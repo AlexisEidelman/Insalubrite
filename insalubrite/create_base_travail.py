@@ -291,7 +291,7 @@ def add_eau(table, force=False):
             table_eau['date_creation'].dt.year
 
     table_eau.loc[~select_on_date,'eau_annee_source'] = np.nan
-    table['eau'] = table_eau['eau_annee_source'].notnull()
+    table_eau['eau'] = table_eau['eau_annee_source'].notnull()
     del table_eau['eau_annee_source']
     #table_eau.drop('date_creation', axis = 1, inplace = True)
     return table_eau
@@ -392,7 +392,7 @@ if __name__ == '__main__':
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
 
-    sarah = sarah_data(False, cols_from_bien_id=colonnes_en_plus)
+    sarah = sarah_data(force_all, cols_from_bien_id=colonnes_en_plus)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
