@@ -9,49 +9,6 @@ niveau_adresses comme données. On ne les modifie pas.
 
 """
 
-import os
-import pandas as pd
-
-from insalubrite.config_insal import path_bspp, path_output
-
-path_affaires = os.path.join(path_output, 'niveau_adresses.csv')
-adresses_sarah = pd.read_csv(path_affaires)
-
-path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
-parcelles = pd.read_csv(path_parcelles)
-assert parcelles['code_cadastre'].isnull().sum() == 0
-
-path_adresses = os.path.join(path_output, 'niveau_adresses.csv')
-adresse = pd.read_csv(path_adresses)
-
-### étape 1
-# on rassemble toutes les infos
-tab = adresses_sarah.merge(adresse, how='left').merge(parcelles, how='left')
-# On a toutes les affaires (avec une visite) y compris les non matchées
-
-
-# on supprime les variables inutiles pour l'analyse
-tab.drop(
-    [
-    # 'adresse_ban_id',
-    'adresse_ban_score', # on ne garde que l'adresse en clair
-    'adresse_id', 'typeadresse',
-    #'affaire_id', # On garde affaire_id pour des matchs évenuels plus tard (c'est l'index en fait)
-    'articles', 'type_infraction', #'infractiontype_id'  on garde par simplicité mais on devrait garder que 'titre',
-    'bien_id', 'bien_id_provenance', # interne à Sarah
-    'codeinsee_x', 'codeinsee_y',# recoupe codepostal
-    'libelle', # = adresse_ban
-
-    ],
-    axis=1, inplace=True, errors='ignore')
-
-
-# Plusieurs niveau de séléction
-# on ne garde que quand le match ban est bon
-tab = tab[tab['adresse_ban_id'].notnull()]
-#del tab['adresse_ban_id']
-# =>  72 lignes en moins
-
 
 def build_output(tab, name_output = 'output', libre_est_insalubre = True,
                 niveau_de_gravite = False):
@@ -82,19 +39,66 @@ def build_output(tab, name_output = 'output', libre_est_insalubre = True,
     tab[name_output] = output
     return tab
 
-tab = build_output(tab, name_output='est_insalubre')
 
+if __name__ == "__main__":
 
-# faire les trois niveaux de table
-niveau_parcelles = tab.groupby('code_cadastre').sum()
-# TODO: ce n'est pas bon parce qu'il peut y avoir plusieurs affaire dans une
-# parcelle, on veut sommer le deman
-
-
-date = pd.to_datetime(tab['date_creation'])
-# Analyse dans le temps
-# =>  on est bien pour 2009
-tab.groupby([date.dt.year])['est_insalubre'].count()
-tab.groupby([date.dt.year])['est_insalubre'].mean().loc[2006:]
-tab.groupby([date.dt.month])['est_insalubre'].count()
-tab.groupby([date.dt.month])['est_insalubre'].mean()
+    import os
+    import pandas as pd
+    
+    from insalubrite.config_insal import path_bspp, path_output
+    
+    path_affaires = os.path.join(path_output, 'niveau_adresses.csv')
+    adresses_sarah = pd.read_csv(path_affaires)
+    
+    path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
+    parcelles = pd.read_csv(path_parcelles)
+    assert parcelles['code_cadastre'].isnull().sum() == 0
+    
+    path_adresses = os.path.join(path_output, 'niveau_adresses.csv')
+    adresse = pd.read_csv(path_adresses)
+    
+    ### étape 1
+    # on rassemble toutes les infos
+    tab = adresses_sarah.merge(adresse, how='left').merge(parcelles, how='left')
+    # On a toutes les affaires (avec une visite) y compris les non matchées
+    
+    
+    # on supprime les variables inutiles pour l'analyse
+    tab.drop(
+        [
+        # 'adresse_ban_id',
+        'adresse_ban_score', # on ne garde que l'adresse en clair
+        'adresse_id', 'typeadresse',
+        #'affaire_id', # On garde affaire_id pour des matchs évenuels plus tard (c'est l'index en fait)
+        'articles', 'type_infraction', #'infractiontype_id'  on garde par simplicité mais on devrait garder que 'titre',
+        'bien_id', 'bien_id_provenance', # interne à Sarah
+        'codeinsee_x', 'codeinsee_y',# recoupe codepostal
+        'libelle', # = adresse_ban
+    
+        ],
+        axis=1, inplace=True, errors='ignore')
+        
+    tab = build_output(tab, name_output='est_insalubre')
+    
+    
+    
+    # Plusieurs niveau de séléction
+    # on ne garde que quand le match ban est bon
+    tab = tab[tab['adresse_ban_id'].notnull()]
+    #del tab['adresse_ban_id']
+    # =>  72 lignes en moins
+    
+    
+    # faire les trois niveaux de table
+    niveau_parcelles = tab.groupby('code_cadastre').sum()
+    # TODO: ce n'est pas bon parce qu'il peut y avoir plusieurs affaire dans une
+    # parcelle, on veut sommer le deman
+    
+    
+    date = pd.to_datetime(tab['date_creation'])
+    # Analyse dans le temps
+    # =>  on est bien pour 2009
+    tab.groupby([date.dt.year])['est_insalubre'].count()
+    tab.groupby([date.dt.year])['est_insalubre'].mean().loc[2006:]
+    tab.groupby([date.dt.month])['est_insalubre'].count()
+    tab.groupby([date.dt.month])['est_insalubre'].mean()
