@@ -34,6 +34,7 @@ def build_output(tab, name_output = 'output', libre_est_insalubre = True,
 
     # si titre est dans
     if 'titre' in tab.columns:
+        tab['titre'].fillna('Rien', inplace=True)
         del tab['infractiontype_id']
 
     tab[name_output] = output
@@ -95,7 +96,7 @@ def niveau(table, niveau):
         print("ce niveau n'est pas encore implémenté")
         output = table.drop(colonnes_en_plus, axis=1)
     
-    assert all(output.isnull.sum() == 0)
+    assert all(output.isnull().sum() == 0)
         
 
 if __name__ == "__main__":
@@ -117,7 +118,6 @@ if __name__ == "__main__":
     tab = adresse.merge(parcelles, how='left')
     # On a toutes les affaires (avec une visite) y compris les non matchées
     
-    tab = nettoyage_brutal(tab)
     
     tab = build_output(tab, name_output='est_insalubre')
     
@@ -126,8 +126,10 @@ if __name__ == "__main__":
     # dans tous les cas, il faut la retirer
     del tab['realisation_saturnisme']
     
+
+    tab = nettoyage_brutal(tab)
     # Plusieurs niveau de séléction
-       
+    toutes_les_variables = niveau(tab, "batiment")
 
     
     
