@@ -10,7 +10,7 @@ niveau_adresses comme données. On ne les modifie pas.
 """
 
 
-def build_output(tab, name_output = 'output', libre_est_insalubre = True,
+def build_output(tab, name_output = 'output', libre_est_salubre = True,
                 niveau_de_gravite = False):
     ''' crée plusieurs output possible à partir de la variable
         infractiontype_id qui est supprimée par cette fonction
@@ -23,21 +23,21 @@ def build_output(tab, name_output = 'output', libre_est_insalubre = True,
     assert 'infractiontype_id' in tab.columns
     infractiontype_id = tab['infractiontype_id']
 
-    output = infractiontype_id.isnull()
-    if libre_est_insalubre:
-        output = output | (infractiontype_id == 30)
+    insalubres = infractiontype_id.notnull()
+    if libre_est_salubre:
+        insalubres = insalubres & (infractiontype_id != 30)
 
     if niveau_de_gravite:
-        output = 1*output
+        insalubres = 1*insalubres
         cond_gravite = infractiontype_id.isin(range(23,29))
-        output[cond_gravite] = 2
+        insalubres[cond_gravite] = 2
 
     # si titre est dans
     if 'titre' in tab.columns:
         tab['titre'].fillna('Rien', inplace=True)
         del tab['infractiontype_id']
 
-    tab[name_output] = output
+    tab[name_output] = insalubres
     return tab
 
 
@@ -94,6 +94,9 @@ def niveau(table, niveau):
         output = table.drop(colonnes_en_plus, axis=1)
     if niveau == 'parcelle':
         print("ce niveau n'est pas encore implémenté")
+        niveau_parcelles = tab.groupby('code_cadastre').sum()
+        # TODO: ce n'est pas bon parce qu'il peut y avoir plusieurs affaire dans une
+        # parcelle, on veut sommer le deman
         output = table.drop(colonnes_en_plus, axis=1)
     
     assert all(output.isnull().sum() == 0)
@@ -113,14 +116,14 @@ if __name__ == "__main__":
     path_adresses = os.path.join(path_output, 'niveau_adresses.csv')
     adresse = pd.read_csv(path_adresses)
     
+    adresse = build_output(adresse, name_output='est_insalubre', libre_est_salubre=False)
+    parcelles = build_output(parcelles, name_output='est_insalubre', libre_est_salubre=False)
+
     ### étape 1
     # on rassemble toutes les infos
     tab = adresse.merge(parcelles, how='left')
     # On a toutes les affaires (avec une visite) y compris les non matchées
-    
-    
-    tab = build_output(tab, name_output='est_insalubre')
-    
+        
     # on pourrait s'en servir avant de supprimer, par exemple en 
     # calculant le temps en la réalisation et l'affaire, mais 
     # dans tous les cas, il faut la retirer
@@ -132,17 +135,11 @@ if __name__ == "__main__":
     toutes_les_variables = niveau(tab, "batiment")
 
     
-    
-    # faire les trois niveaux de table
-    niveau_parcelles = tab.groupby('code_cadastre').sum()
-    # TODO: ce n'est pas bon parce qu'il peut y avoir plusieurs affaire dans une
-    # parcelle, on veut sommer le deman
-    
-    
-    date = pd.to_datetime(tab['date_creation'])
-    # Analyse dans le temps
-    # =>  on est bien pour 2009
-    tab.groupby([date.dt.year])['est_insalubre'].count()
-    tab.groupby([date.dt.year])['est_insalubre'].mean().loc[2006:]
-    tab.groupby([date.dt.month])['est_insalubre'].count()
-    tab.groupby([date.dt.month])['est_insalubre'].mean()
+    def analyse_temporelle(table):
+        date = pd.to_datetime(table['date_creation'])
+        # Analyse dans le temps
+        # =>  on est bien pour 2009
+        table.groupby([date.dt.year])['est_insalubre'].count()
+        print(table.groupby([date.dt.year])['est_insalubre'].mean().loc[2006:])
+        table.groupby([date.dt.month])['est_insalubre'].count()
+        table.groupby([date.dt.month])['est_insalubre'].mean()
