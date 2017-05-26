@@ -137,10 +137,24 @@ colonnes_demandeurs = [
        'Locataire dans un logement social', 'Louez solidaire et sans risque',
        'Dans un squat'
     ]
-       
+
+cols_type_logement = ['NB_LG_GRA', 'NB_LG_LOC', 'NB_LG_NIM', 'NB_LG_PRO',
+                      'NB_LG_IMP', 'NB_LG_VAC', 'NB_LG_DIV', 'NB_LG_UTL',
+                      'NB_LG_LPF']
+cols_nb_pieces = ['NB_PIEC_1', 'NB_PIEC_2', 'NB_PIEC_3', 'NB_PIE_4P',
+                  'NB_PIANX']
+cols_taille_logements = ['NB_LG1_9', 'NB_LG1019', 'NB_LG2029',
+                         'NB_LG3039', 'NB_LG4049', 'NB_LG5069',
+                         'NB_LG7089', 'NB_LG_S90']
+
 def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
              pompier_par_intevention = False,
-             demandeur_par_type = False):
+             demandeur_par_type = False,
+             repartition_logement_par_nb_pieces=False,
+             repartition_logement_par_taille=False,
+             repartition_logement_par_type=False,
+             ):
+                 
     path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
     parcelles = pd.read_csv(path_parcelles)
     assert parcelles['code_cadastre'].isnull().sum() == 0
@@ -180,6 +194,20 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
             }, inplace=True)
     else:
         tab.drop(['TOT_PROP', 'TOT_LOC', 'TOTAL_DEM'], axis=1, inplace=True)
+    
+    # on met la répartitions des logement en ratio du nombre de logements
+    for col in cols_type_logement + cols_taille_logements + cols_nb_pieces:
+        tab[col] /= tab['NB_LG']        
+        
+    if not repartition_logement_par_nb_pieces:
+        tab.drop(cols_nb_pieces, axis=1, inplace=True)
+    if not repartition_logement_par_taille:
+        tab.drop(cols_taille_logements, axis=1, inplace=True)
+    if not repartition_logement_par_type:
+        tab.drop(cols_type_logement, axis=1, inplace=True)
+    else: 
+        print('attention, il y a quelque lignes pour lesquelles le type de',
+              "logement n'est pas rempli")        
     
     return get_niveau(tab, niveau)
     
