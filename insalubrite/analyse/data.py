@@ -104,10 +104,7 @@ if __name__ == "__main__":
     import pandas as pd
     
     from insalubrite.config_insal import path_bspp, path_output
-    
-    path_affaires = os.path.join(path_output, 'niveau_adresses.csv')
-    adresses_sarah = pd.read_csv(path_affaires)
-    
+        
     path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
     parcelles = pd.read_csv(path_parcelles)
     assert parcelles['code_cadastre'].isnull().sum() == 0
@@ -117,7 +114,7 @@ if __name__ == "__main__":
     
     ### étape 1
     # on rassemble toutes les infos
-    tab = adresses_sarah.merge(adresse, how='left').merge(parcelles, how='left')
+    tab = adresse.merge(parcelles, how='left')
     # On a toutes les affaires (avec une visite) y compris les non matchées
     
     tab = nettoyage_brutal(tab)
@@ -130,22 +127,7 @@ if __name__ == "__main__":
     del tab['realisation_saturnisme']
     
     # Plusieurs niveau de séléction
-    
-    # on supprime les variables inutiles pour l'analyse
-    tab.drop(
-        [
-        # 'adresse_ban_id',
-        'adresse_ban_score', # on ne garde que l'adresse en clair
-        'adresse_id', 'typeadresse',
-        #'affaire_id', # On garde affaire_id pour des matchs évenuels plus tard (c'est l'index en fait)
-        'articles', 'type_infraction', #'infractiontype_id'  on garde par simplicité mais on devrait garder que 'titre',
-        'bien_id', 'bien_id_provenance', # interne à Sarah
-        'codeinsee_x', 'codeinsee_y',# recoupe codepostal
-        'libelle', # = adresse_ban
-    
-        ],
-        axis=1, inplace=True, errors='ignore')
-    
+       
 
     
     

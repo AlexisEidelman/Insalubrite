@@ -188,11 +188,16 @@ def add_infos_parcelles(table):
 
     #prépare table pour le match
     code = table['code_cadastre']
-    table['ASP'] = '0' + code.str[3:5] + '-' + code.str[6:8] + '-' + code.str[8:]
+    table.loc[:,'ASP'] = '0' + code.str[3:5] + '-' + code.str[6:8] + '-' + code.str[8:]
 
     table_parcelle = table.merge(parcelle, on=['ASP'],
                        how='left', indicator=True)
     table_parcelle._merge.value_counts()
+    table_parcelle['codeinsee'] = table_parcelle['codeinsee_y']
+    table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee'] = \
+        table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee_x']
+    table_parcelle.drop(['codeinsee_x', 'codeinsee_y'], axis=1, inplace=True)
+
     # 188 match raté
     # =>  non matché, est-ce une question de mise à jour ? table_parcelle[table_parcelle._merge == 'left_only']
 
@@ -281,7 +286,7 @@ def add_eau(table, force=False):
             table_eau['date_creation'].dt.year
 
     table_eau.loc[~select_on_date,'eau_annee_source'] = np.nan
-    table['eau'] = table_eau['eau_annee_source'].notnull()
+    table_eau['eau'] = table_eau['eau_annee_source'].notnull()
     del table_eau['eau_annee_source']
     #table_eau.drop('date_creation', axis = 1, inplace = True)
     return table_eau
@@ -381,13 +386,22 @@ if __name__ == '__main__':
     # avant la visite.
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
+    var_sarah_to_keep = ['affaire_id', 'code_cadastre', 'date_creation',
+                            'codeinsee','infractiontype_id', 'titre']
+#    # explications :
+#        'adresse_ban_score', # on ne garde que l'adresse en clair
+#        #'affaire_id', # On garde affaire_id pour des matchs évenuels plus tard (c'est l'index en fait)
+#        'articles', #'infractiontype_id'  on garde par simplicité mais on devrait garder que 'titre',
+#        'bien_id', 'bien_id_provenance', # interne à Sarah   
+
     
-    sarah = sarah_data(False, cols_from_bien_id=colonnes_en_plus)
+    sarah = sarah_data(force_all, cols_from_bien_id=colonnes_en_plus)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
-    sarah_parcelle = sarah[['affaire_id', 'code_cadastre',
-                            'codeinsee','infractiontype_id', 'titre']]
+    
+    sarah_parcelle = sarah[var_sarah_to_keep]
+    
     sarah_augmentee_parcelle = add_infos_parcelles(sarah_parcelle)
 
     path_output_parcelle = os.path.join(path_output, 'niveau_parcelles.csv')
@@ -400,9 +414,7 @@ if __name__ == '__main__':
     # voir si le signalement ne doit pas être pris en compte pour en avoir plus
 
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
-    sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
-                                   'infractiontype_id', 'titre',
-                                   'code_cadastre', 'date_creation'] + 
+    sarah_adresse = sarah_adresse[var_sarah_to_keep + ['adresse_ban_id'] + 
                                    colonnes_en_plus]
 
     sarah_final = add_infos_niveau_adresse(sarah_adresse,
