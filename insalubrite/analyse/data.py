@@ -89,7 +89,7 @@ def niveau(table, niveau):
     assert niveau in ['batiment', 'adresse', 'parcelle']
     if niveau == 'batiment':
         condition = variables_de_sarah(table)
-        output = table[condition]
+        output = table.loc[condition]
     if niveau == 'adresse':
         output = table.drop(colonnes_en_plus, axis=1)
     if niveau == 'parcelle':
@@ -97,7 +97,7 @@ def niveau(table, niveau):
         output = table.drop(colonnes_en_plus, axis=1)
     
     assert all(output.isnull().sum() == 0)
-        
+    return output
 
 if __name__ == "__main__":
 
