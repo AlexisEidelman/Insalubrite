@@ -46,7 +46,6 @@ tab.drop(
     axis=1, inplace=True, errors='ignore')
 
 
-
 # Plusieurs niveau de séléction
 # on ne garde que quand le match ban est bon
 tab = tab[tab['adresse_ban_id'].notnull()]
@@ -56,7 +55,14 @@ tab = tab[tab['adresse_ban_id'].notnull()]
 
 def build_output(tab, name_output = 'output', libre_est_insalubre = True,
                 niveau_de_gravite = False):
-
+    ''' crée plusieurs output possible à partir de la variable
+        infractiontype_id qui est supprimée par cette fonction
+        Les options concernent :
+            - la valeur "Libre", infractiontype_id == 30
+            - le niveau de gravite : est-ce qu'on veut une sortie binaire 
+        ou bien quelque chose de plus fin distinguant les affaires code de la 
+        santé publique et les autres.
+    '''
     assert 'infractiontype_id' in tab.columns
     infractiontype_id = tab['infractiontype_id']
 
