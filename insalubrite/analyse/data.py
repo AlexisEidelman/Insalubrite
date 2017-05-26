@@ -45,7 +45,12 @@ def nettoyage_brutal(table):
     table = table[table['adresse_ban_id'].notnull()]
     #del tab['adresse_ban_id']
     # =>  72 lignes en moins
+    
+    # Il y 188 cadastre de Sarah qui n'ont pas été retrouvé dans les bases
+    # Apur au niveau cadastral
+    table = table[table['M2_SHAB'].notnull()]
 
+    return table
 
 
 if __name__ == "__main__":
@@ -70,7 +75,8 @@ if __name__ == "__main__":
     tab = adresses_sarah.merge(adresse, how='left').merge(parcelles, how='left')
     # On a toutes les affaires (avec une visite) y compris les non matchées
     
-        
+    tab = nettoyage_brutal(tab)
+    
     tab = build_output(tab, name_output='est_insalubre')
     
     
