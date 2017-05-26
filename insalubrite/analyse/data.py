@@ -9,6 +9,9 @@ niveau_adresses comme données. On ne les modifie pas.
 
 """
 
+import os
+import pandas as pd
+from insalubrite.config_insal import path_bspp, path_output
 
 def build_output(tab, name_output = 'output', libre_est_salubre = True,
                 niveau_de_gravite = False):
@@ -62,7 +65,7 @@ def variables_de_sarah(table):
     # create_bae_travail. Les deux doivent concorder.
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
-    table_reduites = tab[colonnes_en_plus]
+    table_reduites = table[colonnes_en_plus]
     
     # table_reduites.notnull().sum(axis=1).value_counts()
     # => on a 3600 cas, où copropriété est rempli et pas les trois autres
@@ -72,7 +75,7 @@ def variables_de_sarah(table):
     return table_reduites.notnull().all(axis=1)
 
 
-def niveau(table, niveau):
+def get_niveau(table, niveau):
     ''' il s'agit de renvoyer la table conforme au niveau d'intérêt
         niveau peut avoir plusieurs valeurs :
         - 'batiment': on renvoie les données pour lesquelles les variables
@@ -102,22 +105,21 @@ def niveau(table, niveau):
     assert all(output.isnull().sum() == 0)
     return output
 
-if __name__ == "__main__":
 
-    import os
-    import pandas as pd
-    
-    from insalubrite.config_insal import path_bspp, path_output
-        
+def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False):
     path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
     parcelles = pd.read_csv(path_parcelles)
     assert parcelles['code_cadastre'].isnull().sum() == 0
-    
+    parcelles = build_output(parcelles, name_output='est_insalubre',
+                             libre_est_salubre=libre_est_salubre,
+                             niveau_de_gravite=niveau_de_gravite)
+
+   
     path_adresses = os.path.join(path_output, 'niveau_adresses.csv')
     adresse = pd.read_csv(path_adresses)
-    
-    adresse = build_output(adresse, name_output='est_insalubre', libre_est_salubre=False)
-    parcelles = build_output(parcelles, name_output='est_insalubre', libre_est_salubre=False)
+    adresse = build_output(adresse, name_output='est_insalubre',
+                           libre_est_salubre=libre_est_salubre,
+                           niveau_de_gravite=niveau_de_gravite)
 
     ### étape 1
     # on rassemble toutes les infos
@@ -127,13 +129,15 @@ if __name__ == "__main__":
     # on pourrait s'en servir avant de supprimer, par exemple en 
     # calculant le temps en la réalisation et l'affaire, mais 
     # dans tous les cas, il faut la retirer
-    del tab['realisation_saturnisme']
+    del tab['realisation_saturnisme']    
+    
+    tab = nettoyage_brutal(tab)
+
+    return get_niveau(tab, niveau)
     
 
-    tab = nettoyage_brutal(tab)
-    # Plusieurs niveau de séléction
-    toutes_les_variables = niveau(tab, "batiment")
-
+if __name__ == "__main__":
+    tab = get_data("batiment", libre_est_salubre=True, niveau_de_gravite=False)
     
     def analyse_temporelle(table):
         date = pd.to_datetime(table['date_creation'])
@@ -143,3 +147,5 @@ if __name__ == "__main__":
         print(table.groupby([date.dt.year])['est_insalubre'].mean().loc[2006:])
         table.groupby([date.dt.month])['est_insalubre'].count()
         table.groupby([date.dt.month])['est_insalubre'].mean()
+
+    analyse_temporelle(tab)
