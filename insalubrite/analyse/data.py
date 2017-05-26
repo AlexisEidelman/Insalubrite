@@ -106,7 +106,41 @@ def get_niveau(table, niveau):
     return output
 
 
-def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False):
+colonnes_pompiers = [
+        'Assechement de locaux', 'Assechement de locaux (sur requisition)',
+       'Chaudiere surchauffee', 'Court-circuit',
+       "Debouchage d'egout ou de canalisation", 'Eboulement, effondrement',
+       'Feu appel douteux', 'Feu ayant existe', 'Feu de ...',
+       'Feu de cheminee', "Fuite d'eau", "Fuite d'hydrocarbure dans un local",
+       'Fuite de gaz (autres)', 'Fuite de gaz (butane ou propane)',
+       'Fuite de gaz enflammee', 'Immeuble en peril', 'Inondation importante',
+       'Materiaux menacant de chuter', 'Odeur suspecte',
+       "Panne d'origine electrique",
+       "Personne bloquee dans une cabine d'ascenseur",
+       'Prelevement monoxyde de carbone'
+       ]
+       
+
+colonnes_demandeurs = [
+        "Logé chez d'autres personnes",
+       'Centre départemental de l’enfance et de la famille ou centre maternel',
+       'Foyers agents Ville ou agents CASVP',
+       'Logé dans un logement de fonction par votre employeur',
+       'Logé dans un foyer', 'Logé à titre gratuit',
+       "Logé dans un hôtel social, par un centre d'hébergement, un logement d'urgence ou une association",
+       "Logé à l'hôtel",
+       "Dans un local non destiné à l'habitat (cave, parking, etc.)",
+       'Logé chez des parents', 'Propriétaire', 'Locataire dans le privé',
+       'Résidence étudiant', 'Résidence hôtelière à vocation sociale',
+       'Sans domicile fixe', 'Structure d’hébergement',
+       'Sous locataire ou hébergé dans un logement à titre temporaire',
+       'Locataire dans un logement social', 'Louez solidaire et sans risque',
+       'Dans un squat'
+    ]
+       
+def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
+             pompier_par_intevention = False,
+             demandeur_par_type = False):
     path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
     parcelles = pd.read_csv(path_parcelles)
     assert parcelles['code_cadastre'].isnull().sum() == 0
@@ -133,6 +167,20 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False):
     
     tab = nettoyage_brutal(tab)
 
+    if not pompier_par_intevention:
+        tab.loc[:,'intevention_bspp'] = tab[colonnes_pompiers].sum(axis=1)
+        tab.drop(colonnes_pompiers, axis=1, inplace=True)
+
+    if not demandeur_par_type:
+        tab.drop(colonnes_demandeurs, axis=1, inplace=True)
+        del tab['TOTAL_DEM']
+        tab.rename(columns={
+            'TOT_LOC': 'Demandeurs locataires',
+            'TOT_PROP': 'Demandeurs propriétaires'
+            }, inplace=True)
+    else:
+        tab.drop(['TOT_PROP', 'TOT_LOC', 'TOTAL_DEM'], axis=1, inplace=True)
+    
     return get_niveau(tab, niveau)
     
 
