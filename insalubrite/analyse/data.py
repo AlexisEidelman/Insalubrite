@@ -40,6 +40,14 @@ def build_output(tab, name_output = 'output', libre_est_insalubre = True,
     return tab
 
 
+def nettoyage_brutal(table):
+    # on ne garde que quand le match ban est bon
+    table = table[table['adresse_ban_id'].notnull()]
+    #del tab['adresse_ban_id']
+    # =>  72 lignes en moins
+
+
+
 if __name__ == "__main__":
 
     import os
@@ -62,6 +70,11 @@ if __name__ == "__main__":
     tab = adresses_sarah.merge(adresse, how='left').merge(parcelles, how='left')
     # On a toutes les affaires (avec une visite) y compris les non matchées
     
+        
+    tab = build_output(tab, name_output='est_insalubre')
+    
+    
+    # Plusieurs niveau de séléction
     
     # on supprime les variables inutiles pour l'analyse
     tab.drop(
@@ -77,16 +90,8 @@ if __name__ == "__main__":
     
         ],
         axis=1, inplace=True, errors='ignore')
-        
-    tab = build_output(tab, name_output='est_insalubre')
     
-    
-    
-    # Plusieurs niveau de séléction
-    # on ne garde que quand le match ban est bon
-    tab = tab[tab['adresse_ban_id'].notnull()]
-    #del tab['adresse_ban_id']
-    # =>  72 lignes en moins
+
     
     
     # faire les trois niveaux de table
