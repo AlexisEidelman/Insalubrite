@@ -53,6 +53,24 @@ def nettoyage_brutal(table):
     return table
 
 
+def variables_de_sarah(table):
+    ''' retourne une serie de booléen qui avec True si on a les infos
+        sur les variables en plus issues de Sarah
+    '''
+    # volontairement, on appelle les variables avec le même nom que dans 
+    # create_bae_travail. Les deux doivent concorder.
+    colonnes_en_plus = ['possedecaves','mode_entree_batiment',
+                        'hauteur_facade', 'copropriete']
+    table_reduites = tab[colonnes_en_plus]
+    
+    # table_reduites.notnull().sum(axis=1).value_counts()
+    # => on a 3600 cas, où copropriété est rempli et pas les trois autres
+    # => on met de côté ces 3600 cas
+    
+    # on a beaucoup plus d'info sur la copro, que sur les autres
+    return table_reduites.notnull().all(axis=1)
+
+
 if __name__ == "__main__":
 
     import os
