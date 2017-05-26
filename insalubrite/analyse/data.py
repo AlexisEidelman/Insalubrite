@@ -71,6 +71,33 @@ def variables_de_sarah(table):
     return table_reduites.notnull().all(axis=1)
 
 
+def niveau(table, niveau):
+    ''' il s'agit de renvoyer la table conforme au niveau d'intérêt
+        niveau peut avoir plusieurs valeurs :
+        - 'batiment': on renvoie les données pour lesquelles les variables
+            issues de sarah sont remplies
+        - 'adresse': la table la plus complète, on retire les variables de 
+            sarah, mais on a toutes les affaires au niveu adresses avec les
+            infos au niveau cadastre
+        - 'parcelle': on travaille au niveau parcelle
+        TODO: pour l'instant, retire les variables distriué au niveau 
+        adresse, on pourrait/devrait en faire une somme au niveau parcelle
+    '''
+    colonnes_en_plus = ['possedecaves','mode_entree_batiment',
+                        'hauteur_facade', 'copropriete']
+    assert niveau in ['batiment', 'adresse', 'parcelle']
+    if niveau == 'batiment':
+        condition = variables_de_sarah(table)
+        output = table[condition]
+    if niveau == 'adresse':
+        output = table.drop(colonnes_en_plus, axis=1)
+    if niveau == 'parcelle':
+        print("ce niveau n'est pas encore implémenté")
+        output = table.drop(colonnes_en_plus, axis=1)
+    
+    assert all(output.isnull.sum() == 0)
+        
+
 if __name__ == "__main__":
 
     import os
@@ -97,6 +124,10 @@ if __name__ == "__main__":
     
     tab = build_output(tab, name_output='est_insalubre')
     
+    # on pourrait s'en servir avant de supprimer, par exemple en 
+    # calculant le temps en la réalisation et l'affaire, mais 
+    # dans tous les cas, il faut la retirer
+    del tab['realisation_saturnisme']
     
     # Plusieurs niveau de séléction
     
