@@ -153,6 +153,7 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
              repartition_logement_par_nb_pieces=False,
              repartition_logement_par_taille=False,
              repartition_logement_par_type=False,
+             toutes_les_annes = False,
              ):
                  
     path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
@@ -208,6 +209,9 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
     else: 
         print('attention, il y a quelque lignes pour lesquelles le type de',
               "logement n'est pas rempli")        
+    
+    if not toutes_les_annes:
+        tab.drop(['AN_MAX', 'AN_BATLG', 'AN_BATLOA', 'AN_BATSUR'], axis=1, inplace=True)
     
     return get_niveau(tab, niveau)
     
