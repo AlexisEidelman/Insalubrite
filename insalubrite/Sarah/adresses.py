@@ -99,7 +99,14 @@ def adresses():
     adrsimple.loc[adrsimple['numero_adresse2'].isin(['bis', 'ter']), 'bis_ou_ter'] = \
     adrsimple.loc[adrsimple['numero_adresse2'].isin(['bis', 'ter']), 'numero_adresse2']
 
+    adrsimple['ville_adresse'] = adrsimple['ville_adresse'].str.lower()
     adrsimple['ville_adresse'].fillna('', inplace=True)
+    ville_paris = adrsimple['ville_adresse'].str.startswith('paris ')
+    adrsimple.loc[ville_paris, 'ville_adresse'] = 'paris'
+    
+    adrsimple['libelle_adresse'].fillna('', inplace=True)
+    adrsimple['libelle_adresse'] = adrsimple['libelle_adresse'].str.split('PARIS-').str[0]  
+    
     adrsimple['libelle'] = adrsimple['numero_adresse1'] + ' ' + \
     adrsimple['bis_ou_ter'] + ' ' + \
     adrsimple['libelle_adresse'].str.lower()  + ', ' + \
@@ -128,3 +135,14 @@ def adresses():
     return adresse
 
 
+if __name__ == "__main__":
+    import os     
+    from insalubrite.match_to_ban import merge_df_to_ban
+    from insalubrite.config_insal import path_bspp, path_output
+
+    tab = adresses()    
+    tab_ban = merge_df_to_ban(tab[tab.codepostal.notnull()],
+                             os.path.join(path_output, 'temp.csv'),
+                             ['libelle', 'codepostal'],
+                             name_postcode = 'codepostal')
+                    
