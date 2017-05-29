@@ -47,7 +47,7 @@ def build_output(tab, name_output = 'output', libre_est_salubre = True,
     return tab
 
 
-def nettoyage_brutal(table):
+def _nettoyage_brutal(table):
     # on ne garde que quand le match ban est bon
     table = table[table['adresse_ban_id'].notnull()]
     #del tab['adresse_ban_id']
@@ -70,16 +70,16 @@ def variables_de_sarah(table):
         sur les variables en plus issues de Sarah
     '''
     # volontairement, on appelle les variables avec le même nom que dans
-    # create_bae_travail. Les deux doivent concorder.
+    # Les deux doivent concorder.
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
     table_reduites = table[colonnes_en_plus]
 
     # table_reduites.notnull().sum(axis=1).value_counts()
-    # => on a 3600 cas, où copropriété est rempli et pas les trois autres
-    # => on met de côté ces 3600 cas
-
     # on a beaucoup plus d'info sur la copro, que sur les autres
+    # => 3600 cas, où copropriété est rempli et pas les trois autres
+    # => on accepte de perdre cette info. met de côté ces 3600 cas
+
     return table_reduites.notnull().all(axis=1)
 
 
@@ -178,9 +178,10 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
                            libre_est_salubre=libre_est_salubre,
                            niveau_de_gravite=niveau_de_gravite)
 
-    ### étape 1
     # on rassemble toutes les infos
     tab = adresse.merge(parcelles, how='left')
+
+    
     # On a toutes les affaires (avec une visite) y compris les non matchées
 
     # on pourrait s'en servir avant de supprimer, par exemple en
@@ -188,7 +189,7 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
     # dans tous les cas, il faut la retirer
     del tab['realisation_saturnisme']
 
-    tab = nettoyage_brutal(tab)
+    tab = _nettoyage_brutal(tab)
 
     if not pompier_par_intevention:
         tab.loc[:,'intevention_bspp'] = tab[colonnes_pompiers].sum(axis=1)
@@ -221,19 +222,20 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
     if not toutes_les_annes:
         tab.drop(['AN_MAX', 'AN_BATLG', 'AN_BATLOA', 'AN_BATSUR'], axis=1, inplace=True)
 
-    return get_niveau(tab, niveau)
 
+    output = get_niveau(tab, niveau)
 
-def preprocess_data(tab):
-    le = LabelEncoder()
-    list_encoded = list()
-    for name, col in tab.select_dtypes(['object']).iteritems():
-        print(name)
-        list_encoded.append(name)
-        tab['l_' + name] = le.fit_transform(col)
+    # format des variables
+    # les booléens codés par sarah en 0, 1 et 2 avec des NaN
+    # NB: il faut le faire après get_niveau
+    for var in ['possedecaves', 'copropriete']:
+        temp = output[var].fillna(-1)
+        output.loc[:, var] = temp.astype(int).astype(str)
+    
+    output.loc[:,'hotel meublé'] = output['hotel meublé'].astype(bool)
+    output.loc[:,'B_PUBLIC'] = output['B_PUBLIC'] == 'O'
+    return output
 
-    tab.drop(list_encoded, axis=1, inplace=True)
-    return tab
 
 
 if __name__ == "__main__":
