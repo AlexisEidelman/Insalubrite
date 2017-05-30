@@ -11,6 +11,9 @@ niveau_adresses comme données. On ne les modifie pas.
 
 import os
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+
+    
 from insalubrite.config_insal import path_bspp, path_output
 
 def build_output(tab, name_output = 'output', libre_est_salubre = True,
@@ -19,8 +22,8 @@ def build_output(tab, name_output = 'output', libre_est_salubre = True,
         infractiontype_id qui est supprimée par cette fonction
         Les options concernent :
             - la valeur "Libre", infractiontype_id == 30
-            - le niveau de gravite : est-ce qu'on veut une sortie binaire 
-        ou bien quelque chose de plus fin distinguant les affaires code de la 
+            - le niveau de gravite : est-ce qu'on veut une sortie binaire
+        ou bien quelque chose de plus fin distinguant les affaires code de la
         santé publique et les autres.
     '''
     assert 'infractiontype_id' in tab.columns
@@ -44,16 +47,21 @@ def build_output(tab, name_output = 'output', libre_est_salubre = True,
     return tab
 
 
-def nettoyage_brutal(table):
+def _nettoyage_brutal(table):
     # on ne garde que quand le match ban est bon
     table = table[table['adresse_ban_id'].notnull()]
     #del tab['adresse_ban_id']
     # =>  72 lignes en moins
-    
+
     # Il y 188 cadastre de Sarah qui n'ont pas été retrouvé dans les bases
     # Apur au niveau cadastral
     table = table[table['M2_SHAB'].notnull()]
-
+    
+    # Il y a des valeurs nulles dans la suface habitable par exemple 
+    table = table[table['M2_SHAB'] > 0]
+    # retire table['est_insalubre'].value_counts()
+    # False    48
+    # True     26
     return table
 
 
@@ -61,17 +69,17 @@ def variables_de_sarah(table):
     ''' retourne une serie de booléen qui avec True si on a les infos
         sur les variables en plus issues de Sarah
     '''
-    # volontairement, on appelle les variables avec le même nom que dans 
-    # create_bae_travail. Les deux doivent concorder.
+    # volontairement, on appelle les variables avec le même nom que dans
+    # Les deux doivent concorder.
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
     table_reduites = table[colonnes_en_plus]
-    
+
     # table_reduites.notnull().sum(axis=1).value_counts()
-    # => on a 3600 cas, où copropriété est rempli et pas les trois autres
-    # => on met de côté ces 3600 cas
-    
     # on a beaucoup plus d'info sur la copro, que sur les autres
+    # => 3600 cas, où copropriété est rempli et pas les trois autres
+    # => on accepte de perdre cette info. met de côté ces 3600 cas
+
     return table_reduites.notnull().all(axis=1)
 
 
@@ -80,11 +88,11 @@ def get_niveau(table, niveau):
         niveau peut avoir plusieurs valeurs :
         - 'batiment': on renvoie les données pour lesquelles les variables
             issues de sarah sont remplies
-        - 'adresse': la table la plus complète, on retire les variables de 
+        - 'adresse': la table la plus complète, on retire les variables de
             sarah, mais on a toutes les affaires au niveu adresses avec les
             infos au niveau cadastre
         - 'parcelle': on travaille au niveau parcelle
-        TODO: pour l'instant, retire les variables distriué au niveau 
+        TODO: pour l'instant, retire les variables distriué au niveau
         adresse, on pourrait/devrait en faire une somme au niveau parcelle
     '''
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
@@ -101,7 +109,7 @@ def get_niveau(table, niveau):
         # TODO: ce n'est pas bon parce qu'il peut y avoir plusieurs affaire dans une
         # parcelle, on veut sommer le deman
         output = table.drop(colonnes_en_plus, axis=1)
-    
+
     assert all(output.isnull().sum() == 0)
     return output
 
@@ -119,7 +127,7 @@ colonnes_pompiers = [
        "Personne bloquee dans une cabine d'ascenseur",
        'Prelevement monoxyde de carbone'
        ]
-       
+
 
 colonnes_demandeurs = [
         "Logé chez d'autres personnes",
@@ -155,7 +163,7 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
              repartition_logement_par_type=False,
              toutes_les_annes = False,
              ):
-                 
+
     path_parcelles = os.path.join(path_output, 'niveau_parcelles.csv')
     parcelles = pd.read_csv(path_parcelles)
     assert parcelles['code_cadastre'].isnull().sum() == 0
@@ -163,24 +171,25 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
                              libre_est_salubre=libre_est_salubre,
                              niveau_de_gravite=niveau_de_gravite)
 
-   
+
     path_adresses = os.path.join(path_output, 'niveau_adresses.csv')
     adresse = pd.read_csv(path_adresses)
     adresse = build_output(adresse, name_output='est_insalubre',
                            libre_est_salubre=libre_est_salubre,
                            niveau_de_gravite=niveau_de_gravite)
 
-    ### étape 1
     # on rassemble toutes les infos
     tab = adresse.merge(parcelles, how='left')
-    # On a toutes les affaires (avec une visite) y compris les non matchées
-        
-    # on pourrait s'en servir avant de supprimer, par exemple en 
-    # calculant le temps en la réalisation et l'affaire, mais 
-    # dans tous les cas, il faut la retirer
-    del tab['realisation_saturnisme']    
+
     
-    tab = nettoyage_brutal(tab)
+    # On a toutes les affaires (avec une visite) y compris les non matchées
+
+    # on pourrait s'en servir avant de supprimer, par exemple en
+    # calculant le temps en la réalisation et l'affaire, mais
+    # dans tous les cas, il faut la retirer
+    del tab['realisation_saturnisme']
+
+    tab = _nettoyage_brutal(tab)
 
     if not pompier_par_intevention:
         tab.loc[:,'intevention_bspp'] = tab[colonnes_pompiers].sum(axis=1)
@@ -195,30 +204,43 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
             }, inplace=True)
     else:
         tab.drop(['TOT_PROP', 'TOT_LOC', 'TOTAL_DEM'], axis=1, inplace=True)
-    
+
     # on met la répartitions des logement en ratio du nombre de logements
     for col in cols_type_logement + cols_taille_logements + cols_nb_pieces:
-        tab[col] /= tab['NB_LG']        
-        
+        tab[col] /= tab['NB_LG']
+
     if not repartition_logement_par_nb_pieces:
         tab.drop(cols_nb_pieces, axis=1, inplace=True)
     if not repartition_logement_par_taille:
         tab.drop(cols_taille_logements, axis=1, inplace=True)
     if not repartition_logement_par_type:
         tab.drop(cols_type_logement, axis=1, inplace=True)
-    else: 
+    else:
         print('attention, il y a quelque lignes pour lesquelles le type de',
-              "logement n'est pas rempli")        
-    
+              "logement n'est pas rempli")
+
     if not toutes_les_annes:
         tab.drop(['AN_MAX', 'AN_BATLG', 'AN_BATLOA', 'AN_BATSUR'], axis=1, inplace=True)
+
+
+    output = get_niveau(tab, niveau)
+
+    # format des variables
+    # les booléens codés par sarah en 0, 1 et 2 avec des NaN
+    # NB: il faut le faire après get_niveau
+    for var in ['possedecaves', 'copropriete']:
+        temp = output[var].fillna(-1)
+        output.loc[:, var] = temp.astype(int).astype(str)
     
-    return get_niveau(tab, niveau)
-    
+    output.loc[:,'hotel meublé'] = output['hotel meublé'].astype(bool)
+    output.loc[:,'B_PUBLIC'] = output['B_PUBLIC'] == 'O'
+    return output
+
+
 
 if __name__ == "__main__":
     tab = get_data("batiment", libre_est_salubre=True, niveau_de_gravite=False)
-    
+
     def analyse_temporelle(table):
         date = pd.to_datetime(table['date_creation'])
         # Analyse dans le temps
