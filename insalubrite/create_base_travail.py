@@ -193,10 +193,10 @@ def add_infos_parcelles(table):
     table_parcelle = table.merge(parcelle, on=['ASP'],
                        how='left', indicator=True)
     table_parcelle._merge.value_counts()
-    table_parcelle['codeinsee'] = table_parcelle['codeinsee_y']
-    table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee'] = \
-        table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee_x']
-    table_parcelle.drop(['codeinsee_x', 'codeinsee_y'], axis=1, inplace=True)
+#    table_parcelle['codeinsee'] = table_parcelle['codeinsee_y']
+#    table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee'] = \
+#        table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee_x']
+#    table_parcelle.drop(['codeinsee_x', 'codeinsee_y'], axis=1, inplace=True)
 
     # 188 match raté
     # =>  non matché, est-ce une question de mise à jour ? table_parcelle[table_parcelle._merge == 'left_only']

@@ -50,6 +50,7 @@ def build_output(tab, name_output = 'output', libre_est_salubre = True,
 def _nettoyage_brutal(table):
     # on ne garde que quand le match ban est bon
     table = table[table['adresse_ban_id'].notnull()]
+    table = table[table['codeinsee'].notnull()]
     #del tab['adresse_ban_id']
     # =>  72 lignes en moins
 
