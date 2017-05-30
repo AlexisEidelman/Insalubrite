@@ -319,4 +319,6 @@ ravalement = sarah.merge(table_finale,
                          on = ['affaire_id','adresse_id'],
                          how = 'outer',
                          indicator = True)
+
 ravalement.drop('adresse_id',axis=1,inplace = True)
+
