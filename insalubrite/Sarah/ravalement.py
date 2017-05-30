@@ -7,11 +7,8 @@ Enrichit la BDD avec les données de ravalement
 import pandas as pd
 import os
 
-from insalubrite.config_insal import path_sarah, path_output
 from insalubrite.Sarah.read import read_table
 from insalubrite.Sarah.affhygiene import tables_reliees_a, est_reliee_a
-from insalubrite.Sarah.bien_id import adresse_via_bien_id
-#from insalubrite.Sarah.adresse_de_l_affaire import add_adresse_id
 from insalubrite.Sarah.adresses import adresses
 from insalubrite.match_to_ban import merge_df_to_ban
 
@@ -24,6 +21,11 @@ from insalubrite.config_insal import  path_output
 
 ##### PV Ravalement ##########
 def pv_table():
+    """"
+        Crée la table <PV> ravalement: affaires avec pv (ou non) avec quelques
+        infos comme la date de l'envoi du pv, quel facade concernée, quel
+        immeuble.
+    """
     ##Travail sur la table pv ravalement##
     pv_ravalement = read_table('pv_ravalement')
     pv_ravalement.rename(columns = {'id':'pv_ravalement_id',
@@ -41,6 +43,7 @@ def pv_table():
     # un procès verbal a été envoyé à date_envoi
     
     ##Merge avec affravalement##
+    affravalement = read_table('affravalement')
     table = affravalement.merge(pv_ravalement,
                                 on = 'affaire_id',
                                 how= 'left',
@@ -62,11 +65,13 @@ def pv_table():
     return table
 
 pv = pv_table()
-
-# relie à la façade concernée
-#est_reliee_a('pv_ravalement_facade')
-
-##len(facade) =>105839
+print("{} affaires de ravalement dans {} immeubles".format(pv.affaire_id.nunique(),
+      pv.immeuble_id.nunique()))
+print("{} procès verbaux de ravalement".format(pv.pv_ravalement_id.nunique()))
+#la longueur de table pv est supérieure aux nombres d'affaires car
+#La même affaire peut avoir plusieurs pv
+#pv.pv_ravalement_id.value_counts(dropna=False)
+#pv.query("pv_ravalement_id == 57632")
 
 ############################
 ###Travail sur façade#######
@@ -79,6 +84,10 @@ est_reliee_a('facade')
 # ('facade', 'adresse_id', 'adresse'),
 ## ('facade', 'typefacade_id', 'typefacade')]
 def facade_table():
+    """
+       Crée la table <façade> qui donne des infos sur chaque façade: son nom
+       (voir désignation), sa hauteur, le matériau de construction.
+    """
     facade = read_table('facade')
     facade.rename(columns = {'id':'facade_id'},inplace = True)
     ####Merge avec type facade###
@@ -105,26 +114,24 @@ def facade_table():
     return table
 
 facade = facade_table()
+print("{} différentes façades pour {} bâtiments".format(facade.facade_id.nunique(),
+      facade.batiment_id.nunique()))
 
-#table = table.merge(facade,
-#                    on = 'facade_id',
-#                    how = 'left',
-#                    indicator = True,
-#                    )
-#table._merge.value_counts(dropna=False)
-#variables d'intérêt: adresse_id, batiment_id, typefacade
 
 ###### Incitation au ravalement (dans le cadre d'une affaire) ######
 # une incitation au ravalement est l'analogue d'une prescription dans une 
 # affaire d'hygiene
 # se fait à la même adresse
 def incitation_table():
+    """
+       Crée la table <incitation> au ravalement.
+    """
     incitation_ravalement = read_table('incitation_ravalement')
     #pour la même affaire ouverte à une adresse donnée
-    # plusieurs incitations au ravalement possibles
+    # plusieurs incitations au ravalement possibles (jusqu'à 20)
     
     incitation_ravalement.drop(['copieconforme_en_cours', 'renotification_en_cours',
-                                #'nature'
+                                'nature'
                                 ],
                        axis = 1,
                        inplace = True,
@@ -161,7 +168,9 @@ def incitation_table():
                                   #indicator = True,
                                   )
     return incitation
+
 incitation = incitation_table()
+print("{} incitations".format(incitation.incitation_ravalement_id.nunique()))
 
 incitation.query("(affaire_id == 3266)&(facade_id == 65573)")
 exple = ['adresse_id','affaire_id','date_envoi_incitation_ravalement','facade_id']
@@ -169,6 +178,9 @@ incitation.groupby(exple).size().sort_values(ascending = False)
 
 #### Arrêté Ravalement ############
 def arrete_table():
+    """
+       Crée la table <arrêté> avec les infos temporelles sur la vie de l'arrêté
+    """
     ###Travail sur la table arrete ravalement ###
     arrete_ravalement = read_table('arrete_ravalement')
     arrete_ravalement.rename(columns = {'id':'arrete_ravalement_id',
@@ -179,7 +191,8 @@ def arrete_table():
                                         'date_signature':'date_signature_arrete',
                                         'date_visite':'date_visite_arrete'},
                             inplace = True)
-    arrete_ravalement.drop(['copieconforme_en_cours', 'renotification_en_cours'],
+    arrete_ravalement.drop(['copieconforme_en_cours', 'renotification_en_cours',
+                            'cdd_id','nature'],
                            axis = 1,
                            inplace = True,
                            )
@@ -209,56 +222,14 @@ def arrete_table():
                                     how = 'left')
     return table
 arrete = arrete_table()
+print("{} arrêtés".format(arrete.arrete_ravalement_id.nunique()))
 
-
-#################################
-#####   Etape MERGE  ###########
-################################
-
-#TODO: Merge avec facade
-#Table créées: pv, incitation, arrete, facade
-var_to_merge_on = ['affaire_id','facade_id']
-pv_incitation = pv.merge(incitation,
-                         on = var_to_merge_on,
-                         how = 'outer',
-                         indicator = '_merge_pv_incitation',
-                         )
-pv_incitation._merge_pv_incitation.value_counts(dropna = False)
-#right_only    36645
-#left_only     17290
-#both           1627
-
-var_to_merge_on2 = ['adresse_id','affaire_id','facade_id','arrete_ravalement_id']
-pv_incitation_arrete = pv_incitation.merge(arrete,
-                                     on = var_to_merge_on2,
-                                     how = 'outer',
-                                     indicator = '_merge_with_arrete',
-                                    )
-pv_incitation_arrete._merge_with_arrete.value_counts(dropna = False)
-#both          19499: bcp d'incitations ont conduit à des arretes
-#left_only     18759: des incitations qui n'ont pas conduit à des arretes
-#right_only     4369: quelques affaires (peu) ont eu des arretes directement sans
-#                     aucune incitation préalable
-
-
-table_finale = pv_incitation_arrete.merge(facade,
-                                          on = 'facade_id',
-                                          how = 'outer',
-                                          indicator = '_merge_facade',
-                                          )
-table_finale._merge_facade.value_counts(dropna = False)
-#right_only    87237
-#both          42660
-#left_only     17272
-
-
-########################
-#Adresse de l'affaire##
-#######################
-affravalement = read_table('affravalement')
-#affravalement.affaire_id.nunique() ##=>17633 affaires uniques
-
+#### Immeuble ############
 def immeuble_table():
+    """
+       Crée la table <immeuble> qui fait le pont entre l'immeuble et la parcelle
+       dans laquelle il se trouve
+    """
     immeuble = read_table('immeuble')
     immeuble.rename(columns = {'id':'immeuble_id',
                                'adresseprincipale_id': 'adresse_id'},
@@ -281,15 +252,18 @@ def immeuble_table():
 
 immeuble = immeuble_table()
 #immeuble_id est un bien_id qui permettra de relier l'affaire à son adresse 
+print("{} immmeubles disponibles pour matcher".format(immeuble.immeuble_id.nunique()))
 
-affaire = affravalement.merge(immeuble,
-                            on = 'immeuble_id',
-                            how = 'left',
-#                            indicator = True,
-                            )
+##############################
+###  Adresse de l'affaire  ##
+#############################
 
-###ajout adresses correspondantes
 def affaire_avec_adresse(affaire):
+    """
+       Elle prend une table <affaire ravalement> contenant adresse_id et la 
+       relie à l'adresse de la base d'adresse nationale correspondante
+    """
+    assert 'adresse_id' in affaire.columns
     affaire_with_adresse = affaire[affaire.adresse_id.notnull()]
 
     adresse = adresses()[['adresse_id', 'typeadresse',
@@ -307,18 +281,59 @@ def affaire_avec_adresse(affaire):
                              name_postcode = 'codepostal')
     sarah = sarah_adresse.append(sarah[~match_possible])
     return sarah
-###fin ajout adresses correspondantes
 
-sarah = affaire_avec_adresse(affaire)
-sarah.drop('typeadresse',axis=1,inplace = True)
 
-#################################
-#####   Dernier MERGE  ###########
-################################
-ravalement = sarah.merge(table_finale,
-                         on = ['affaire_id','adresse_id'],
-                         how = 'outer',
-                         indicator = True)
+##############################
+#####   Etape MERGE  #########
+#############################
 
-ravalement.drop('adresse_id',axis=1,inplace = True)
+#Table créées aux étapes précédentes: pv, incitation, arrete, facade, immeuble
 
+pv_incitation = pv.merge(incitation,
+                         on = ['affaire_id',
+                               'facade_id',
+                               ],
+                         how = 'left',
+#                         indicator = '_merge_incitation',
+#                         suffixes = ['_pv','_incitation'],
+                         )
+
+
+var_to_merge_on = ['adresse_id','affaire_id',
+                   'facade_id','arrete_ravalement_id',
+                   ]
+pv_incitation_arrete = pv_incitation.merge(arrete,
+                                           on = var_to_merge_on,
+                                           how = 'left',
+#                                           suffixes = ['','_arrete'],
+#                                           indicator = '_merge_arrete',
+                                            )
+#pv_incitation_arrete._merge_arrete.value_counts(dropna = False)
+#both          19499: bcp d'incitations ont conduit à des arretes
+#left_only     18759: des incitations qui n'ont pas conduit à des arretes
+#right_only     4369: quelques affaires (peu) ont eu des arretes directement sans
+#                     aucune incitation préalable
+
+
+pv_incitation_arrete_facade = pv_incitation_arrete.merge(facade,
+                                          on = ['facade_id','adresse_id'],
+                                          how = 'left',
+#                                          indicator = '_merge_facade',
+                                          )
+#pv_incitation_arrete_facade._merge_facade.value_counts(dropna = False)
+#right_only    87237
+#both          42660
+#left_only     17272
+
+affaire = pv_incitation_arrete_facade.merge(immeuble,
+                            on = ['immeuble_id','adresse_id'],
+                            how = 'left',
+                            indicator = '_merge_immeuble',
+                            )
+
+ravalement = affaire_avec_adresse(affaire)
+ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
+
+#####Ecrire sur .csv ######
+path_ravalement = os.path.join(path_output,'ravalement.csv')
+ravalement.to_csv(path_ravalement)
