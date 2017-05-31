@@ -11,7 +11,7 @@ niveau_adresses comme données. On ne les modifie pas.
 
 import os
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
+
 
     
 from insalubrite.config_insal import path_bspp, path_output

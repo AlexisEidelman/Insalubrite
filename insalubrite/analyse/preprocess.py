@@ -2,8 +2,8 @@
 """
 Pour avoir de belles variables
 """
-
 import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 
 def keep_cols_for_analysis(tab, choix_niveau_proprietaire = 'L_PDNIV0'):
     niveaux_prorietaire = ['L_PD', 'L_PDNIV0', 'L_PDNIV1', 'L_PDNIV2']
@@ -20,22 +20,33 @@ def keep_cols_for_analysis(tab, choix_niveau_proprietaire = 'L_PDNIV0'):
     return out
 
 
-def preprocess_data(tab):
+def encode(tab, drop_old = True):
+    ''' on transforme les donnée objects en                 
+        
+        drop_old = True pour supprimer les anciennes variables
+        
+        renvoie de nouvelles préfixée par l_ + ancien nom avec dtype = int64
+        
+    '''    
     le = LabelEncoder()
     list_encoded = list()
-    for name, col in tab.select_dtypes(['object']).iteritems():
-        print(name)
+    out = tab.copy()
+    for name, col in out.select_dtypes(exclude=['int', 'float']).iteritems():
         list_encoded.append(name)
-        tab['l_' + name] = le.fit_transform(col)
+        out['l_' + name] = le.fit_transform(col)
 
-    tab.drop(list_encoded, axis=1, inplace=True)
-    return tab
+    if drop_old:
+        out.drop(list_encoded, axis=1, inplace=True)
+    return out
 
 
 
 def to_float(tab):
-    ''' on transforme les donnée objetcs en données float en passant via 
+    ''' on transforme les donnée objects en données float en passant via 
         dummy
+        
+        renvoie des colonnes avec dtype = uint8
+        
     '''
     categorielles = tab.select_dtypes(['object', 'category'])
     for col in categorielles:
@@ -44,15 +55,18 @@ def to_float(tab):
     categorielles = pd.get_dummies(categorielles, drop_first=False)
     
     for name, col in tab.select_dtypes(['bool']).iteritems():
-        tab.loc[:,name] = 1*tab[name]
-    
+        tab.loc[:,name] = 1*tab[name].astype(float)
     
     return tab.select_dtypes(['float', 'bool']).join(categorielles)
 
 
 def to_qualitative(tab, nombre_de_division = 4):
-    ''' on transforme les donnée objetcs en données float en passant via 
-        dummy
+    ''' on transforme les donnée float en données object ou catégories
+        - si on prend peu de valeurs (20), on transforme en string
+        - sinon, on utilise une répartition en quantile
+    
+        renvoie des colonnes avec dtype = object ou category        
+        
     '''
    
     for name, col in tab.select_dtypes(['bool']).iteritems():
@@ -60,13 +74,18 @@ def to_qualitative(tab, nombre_de_division = 4):
     
     numeriques = tab.select_dtypes(['float'])
     for col in numeriques:
-        numeriques.loc[:,col] = pd.qcut(numeriques.loc[:,col],
-                                 nombre_de_division,
-                                 duplicates='drop') 
+        if numeriques[col].nunique() < 20: # on pourrait mettre len(numeriques)/100 par exemple 
+            numeriques.loc[:,col] = numeriques[col].astype('object')
+        else:
+            numeriques.loc[:,col] = pd.qcut(numeriques.loc[:,col],
+                                     nombre_de_division,
+                                     duplicates='drop') 
     
     out = tab.select_dtypes(exclude=['float']).join(numeriques)
     assert out.shape == tab.shape    
     return out
+
+
 
 if __name__ == '__main__':
     from data import get_data
@@ -78,3 +97,5 @@ if __name__ == '__main__':
     
     quali_in_numerique = to_float(quali_tab)
     
+    encoded = encode(quali_tab)
+    print(quali_tab.dtypes)
