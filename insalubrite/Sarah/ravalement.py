@@ -167,6 +167,8 @@ def incitation_table():
                                   how = 'left',
                                   #indicator = True,
                                   )
+    incitation.rename(columns = {'arrete_ravalement_id':'arrete_suite_a_incitation_id'},
+                 inplace = True)
     return incitation
 
 incitation = incitation_table()
@@ -220,6 +222,7 @@ def arrete_table():
     table = arrete_ravalement.merge(arrete_ravalement_facade, 
                                     on = 'arrete_ravalement_id',
                                     how = 'left')
+    
     return table
 arrete = arrete_table()
 print("{} arrêtés".format(arrete.arrete_ravalement_id.nunique()))
@@ -260,8 +263,8 @@ print("{} immmeubles disponibles pour matcher".format(immeuble.immeuble_id.nuniq
 
 def affaire_avec_adresse(affaire):
     """
-       Elle prend une table <affaire ravalement> contenant adresse_id et la 
-       relie à l'adresse de la base d'adresse nationale correspondante
+       Elle prend la table <affaire ravalement> contenant adresse_id et la 
+       relie à l'adresse de la Base d'Adresse Nationale correspondante
     """
     assert 'adresse_id' in affaire.columns
     affaire_with_adresse = affaire[affaire.adresse_id.notnull()]
@@ -280,6 +283,7 @@ def affaire_avec_adresse(affaire):
                              ['libelle', 'codepostal'],
                              name_postcode = 'codepostal')
     sarah = sarah_adresse.append(sarah[~match_possible])
+    sarah = sarah.append(affaire[affaire.adresse_id.isnull()])
     return sarah
 
 
@@ -289,48 +293,108 @@ def affaire_avec_adresse(affaire):
 
 #Table créées aux étapes précédentes: pv, incitation, arrete, facade, immeuble
 
+# HYPOTHESE PV
+# On va garder un pv par affaire 
+# généralement lorsqu'on a plusiseurs pv pour une affaire c'est souvent 
+# le même immeuble mais des façades différentes: donc on va garder juste une 
+# façade
+#pv.groupby(['affaire_id','facade_id']).size().sort_values()
+pv = pv.groupby('affaire_id').first().reset_index()
+
+# HYPOTHESE INCITATION
+#On va garder une incitation par affaire
+##incitation.groupby('affaire_id').size().sort_values()
+#incitation.query("affaire_id == 4935")
+##2 incitations (en 2007 puis en 2008) à la même adresse sur 3 façades: 
+## chaque fois ça a donné des arrêtés différents
+#incitation.query("affaire_id == 2704")
+##même constat
+incitation = incitation.groupby('affaire_id').first().reset_index()
+
 pv_incitation = pv.merge(incitation,
                          on = ['affaire_id',
-                               'facade_id',
+#                               'facade_id',
                                ],
                          how = 'left',
 #                         indicator = '_merge_incitation',
-#                         suffixes = ['_pv','_incitation'],
+                         suffixes = ['_pv','_incitation'],
                          )
 
+# HYPOTHESE ARRETE
+# On va garder un arrêté par affaire
+arrete = arrete.groupby('affaire_id').first().reset_index()
 
-var_to_merge_on = ['adresse_id','affaire_id',
-                   'facade_id','arrete_ravalement_id',
-                   ]
+arrete.drop('adresse_id', axis = 1 , inplace =True)
+arrete.rename(columns = {'facade_id':'facade_arrete_id'},inplace = True)
 pv_incitation_arrete = pv_incitation.merge(arrete,
-                                           on = var_to_merge_on,
+                                           on = 'affaire_id',
                                            how = 'left',
 #                                           suffixes = ['','_arrete'],
 #                                           indicator = '_merge_arrete',
                                             )
-#pv_incitation_arrete._merge_arrete.value_counts(dropna = False)
-#both          19499: bcp d'incitations ont conduit à des arretes
-#left_only     18759: des incitations qui n'ont pas conduit à des arretes
-#right_only     4369: quelques affaires (peu) ont eu des arretes directement sans
-#                     aucune incitation préalable
+#pv_incitation_arrete.query("adresse_id == adresse_id_arrete").shape
+#les adresses des affaires dans la table arrete ne sont pas cohérentes avec
+#les adresses venant de pv,incitation: seulement 37 % cohérentes
+# je préfère enlever les adresses de la table arrete
+#TODO: Faire mieux?
 
+#TODO: faire une table niveau facade, niveau immeuble, niveau adresse, niveau parcelle
 
+#####Infos façades####
+facade.drop(['possedecbles','possedeterr','recolable'],axis=1, inplace = True)
 pv_incitation_arrete_facade = pv_incitation_arrete.merge(facade,
-                                          on = ['facade_id','adresse_id'],
-                                          how = 'left',
-#                                          indicator = '_merge_facade',
-                                          )
-#pv_incitation_arrete_facade._merge_facade.value_counts(dropna = False)
-#right_only    87237
-#both          42660
-#left_only     17272
+                                      left_on = ['facade_id_pv',
+#                                                 'adresse_id'
+                                                 ],
+                                      right_on = ['facade_id',
+#                                                  'adresse_id',
+                                                  ],
+                                      how = 'left',
+                                      suffixes = ['','_pv'],
+#                                      indicator = '_merge_facade_pv',
+                                      )
+pv_incitation_arrete_facade.drop('facade_id',axis=1,inplace = True)
+pv_incitation_arrete_facade = pv_incitation_arrete_facade.merge(facade,
+                                      left_on = ['facade_id_incitation',
+#                                                 'adresse_id',
+                                                 ],
+                                      right_on = ['facade_id',
+#                                                  'adresse_id',
+                                                  ],
+                                      suffixes = ['','_incitation'],
+                                      how = 'left',
+#                                      indicator = '_merge_facade_incitation',
+                                      )
+pv_incitation_arrete_facade.drop('facade_id',axis=1,inplace = True)
+pv_incitation_arrete_facade = pv_incitation_arrete_facade.merge(facade,
+                                      left_on = ['facade_arrete_id',
+#                                                 'adresse_id',
+                                                 ],
+                                      right_on = ['facade_id',
+#                                                  'adresse_id',
+                                                  ],
+                                      how = 'left',
+                                      suffixes = ['','_arrete'],
+#                                      indicator = '_merge_facade_arrete',
+                                      )
+pv_incitation_arrete_facade.drop('facade_id',axis=1,inplace = True)
+#####Fin infos façades######
 
 affaire = pv_incitation_arrete_facade.merge(immeuble,
-                            on = ['immeuble_id','adresse_id'],
+                            on = ['immeuble_id',
+#                                  'adresse_id',
+                                  ],
                             how = 'left',
-                            indicator = '_merge_immeuble',
+                            suffixes = ['','_immeuble'],
+#                            indicator = '_merge_immeuble',
                             )
-
+######## Adresse ########### 
+#Plusieurs id adresse: adresse_id, adresse_id incitation, 
+# adresse_id_pv, adresse_id_arrete, adresse_id_immeuble
+affaire.drop(['adresse_id_pv', 'adresse_id_arrete','adresse_id_immeuble',
+              'adresse_id_incitation'],
+             axis = 1, 
+             inplace = True)
 ravalement = affaire_avec_adresse(affaire)
 ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
 
