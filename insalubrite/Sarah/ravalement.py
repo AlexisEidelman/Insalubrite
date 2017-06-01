@@ -198,18 +198,11 @@ def arrete_table():
                            axis = 1,
                            inplace = True,
                            )
-    arrete_ravalement['date_delai_arrete'] = \
-                arrete_ravalement['date_delai_arrete'].astype(str).str[:10]
-    arrete_ravalement['date_enregistrement_arrete'] = \
-                arrete_ravalement['date_enregistrement_arrete'].astype(str).str[:10]
-    arrete_ravalement['date_envoi_arrete'] = \
-                arrete_ravalement['date_envoi_arrete'].astype(str).str[:10]
-    arrete_ravalement['date_notification_arrete'] = \
-                arrete_ravalement['date_notification_arrete'].astype(str).str[:10]
-    arrete_ravalement['date_signature_arrete'] = \
-                arrete_ravalement['date_signature_arrete'].astype(str).str[:10]
-    arrete_ravalement['date_visite_arrete'] = \
-                arrete_ravalement['date_visite_arrete'].astype(str).str[:10]
+    
+    dates = ['date_delai_arrete','date_enregistrement_arrete','date_envoi_arrete',
+             'date_notification_arrete','date_signature_arrete','date_visite_arrete']
+    arrete_ravalement[dates] = arrete_ravalement[dates].apply(lambda x: x.astype(str).str[:10])
+
     ###Petit travail sur les délais d'arreté ###
     delai = arrete_ravalement['delai']*((arrete_ravalement['type_delai']==3).astype(int) + 
                       30*((arrete_ravalement['type_delai']==4).astype(int)))
