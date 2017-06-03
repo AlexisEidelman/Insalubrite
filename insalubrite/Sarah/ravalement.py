@@ -41,16 +41,16 @@ def pv_table():
                        inplace = True,
                        )
     # un procès verbal a été envoyé à date_envoi
-    
+
     ##Merge avec affravalement##
     affravalement = read_table('affravalement')
     table = affravalement.merge(pv_ravalement,
                                 on = 'affaire_id',
                                 how= 'left',
                                 )
-    
+
     #tables_reliees_a('pv_ravalement')
-    
+
     pv_ravalement_facade = read_table('pv_ravalement_facade')
     pv_ravalement_facade.rename(columns = {'facadesconcernees_id':'facade_id'},
                                 inplace = True,
@@ -119,7 +119,7 @@ print("{} différentes façades pour {} bâtiments".format(facade.facade_id.nuni
 
 
 ###### Incitation au ravalement (dans le cadre d'une affaire) ######
-# une incitation au ravalement est l'analogue d'une prescription dans une 
+# une incitation au ravalement est l'analogue d'une prescription dans une
 # affaire d'hygiene
 # se fait à la même adresse
 def incitation_table():
@@ -129,7 +129,7 @@ def incitation_table():
     incitation_ravalement = read_table('incitation_ravalement')
     #pour la même affaire ouverte à une adresse donnée
     # plusieurs incitations au ravalement possibles (jusqu'à 20)
-    
+
     incitation_ravalement.drop(['copieconforme_en_cours', 'renotification_en_cours',
                                 'nature'
                                 ],
@@ -141,7 +141,7 @@ def incitation_table():
                                  inplace = True)
     incitation_ravalement['date_envoi_incitation_ravalement'] = \
                 incitation_ravalement['date_envoi_incitation_ravalement'].str[:10]
-    
+
     incitation_ravalement_facade = read_table('incitation_ravalement_facade')
     incitation_ravalement_facade.rename(columns = {'facadesconcernees_id':'facade_id'},
                                 inplace = True,
@@ -149,14 +149,14 @@ def incitation_table():
     incitation = incitation_ravalement.merge(incitation_ravalement_facade,
                                 on = 'incitation_ravalement_id',
                                 how = 'left')
-    
+
     ###Petit travail sur les délais d'incitation ###
-    delai = incitation['delai']*((incitation['type_delai']==3).astype(int) + 
+    delai = incitation['delai']*((incitation['type_delai']==3).astype(int) +
                       30*((incitation['type_delai']==4).astype(int)))
     incitation['delai_incitation_raval_en_jours'] = delai
     incitation.drop(['delai','type_delai'], axis = 1, inplace = True)
-    
-    
+
+
     # une incitation peut consuire à un arrêté
     arrete_ravalement_incitation_ravalement = read_table('arrete_ravalement_incitation_ravalement')
     arrete_ravalement_incitation_ravalement.rename(
@@ -186,37 +186,32 @@ def arrete_table():
     """
     ###Travail sur la table arrete ravalement ###
     arrete_ravalement = read_table('arrete_ravalement')
-    arrete_ravalement.rename(columns = {'id':'arrete_ravalement_id',
-                                        'date_delai':'date_delai_arrete',
-                                        'date_enregistrement':'date_enregistrement_arrete',
-                                        'date_envoi':'date_envoi_arrete',
-                                        'date_notification':'date_notification_arrete',
-                                        'date_signature':'date_signature_arrete',
-                                        'date_visite':'date_visite_arrete'},
-                            inplace = True)
     arrete_ravalement.drop(['copieconforme_en_cours', 'renotification_en_cours',
                             'cdd_id','nature'],
                            axis = 1,
                            inplace = True,
                            )
-    
-    dates = ['date_delai_arrete','date_enregistrement_arrete','date_envoi_arrete',
-             'date_notification_arrete','date_signature_arrete','date_visite_arrete']
+    dates = ['date_delai','date_enregistrement','date_envoi',
+             'date_notification','date_signature','date_visite']
     arrete_ravalement[dates] = arrete_ravalement[dates].apply(lambda x: x.astype(str).str[:10])
+    dates_arrete = [col + '_arrete' for col in dates]
+    rename_dates = dict(zip(dates, dates_arrete))
+    rename_dates['id'] = 'arrete_ravalement_id'
+    arrete_ravalement.rename(columns = rename_dates, inplace = True)
 
     ###Petit travail sur les délais d'arreté ###
-    delai = arrete_ravalement['delai']*((arrete_ravalement['type_delai']==3).astype(int) + 
+    delai = arrete_ravalement['delai']*((arrete_ravalement['type_delai']==3).astype(int) +
                       30*((arrete_ravalement['type_delai']==4).astype(int)))
     arrete_ravalement['delai_arrete_raval_en_jours'] = delai
-    arrete_ravalement.drop(['delai','type_delai'], axis = 1, inplace = True)            
-    
+    arrete_ravalement.drop(['delai','type_delai'], axis = 1, inplace = True)
+
     arrete_ravalement_facade = read_table('arrete_ravalement_facade')
     arrete_ravalement_facade.rename(columns = {'facadesconcernees_id':'facade_id'},
                                     inplace = True)
-    table = arrete_ravalement.merge(arrete_ravalement_facade, 
+    table = arrete_ravalement.merge(arrete_ravalement_facade,
                                     on = 'arrete_ravalement_id',
                                     how = 'left')
-    
+
     return table
 arrete = arrete_table()
 print("{} arrêtés".format(arrete.arrete_ravalement_id.nunique()))
@@ -231,7 +226,7 @@ def immeuble_table():
     immeuble.rename(columns = {'id':'immeuble_id',
                                'adresseprincipale_id': 'adresse_id'},
                     inplace = True)
-    
+
     ###Suppression colonnes inutiles ###
     immeuble = immeuble.loc[:, immeuble.notnull().sum() > 1] # retire les colonnes vides
     # une étude colonne par colonne
@@ -242,13 +237,13 @@ def immeuble_table():
                  ]
     immeuble.drop(que_des_2, axis=1, inplace=True)
     del immeuble['tournee_id'] # que 8 valeurs
-    
+
     ### Date recolement ####
     immeuble['daterecolement'] = immeuble['daterecolement'].astype(str).str[:10]
     return immeuble
 
 immeuble = immeuble_table()
-#immeuble_id est un bien_id qui permettra de relier l'affaire à son adresse 
+#immeuble_id est un bien_id qui permettra de relier l'affaire à son adresse
 print("{} immmeubles disponibles pour matcher".format(immeuble.immeuble_id.nunique()))
 
 ##############################
@@ -257,7 +252,7 @@ print("{} immmeubles disponibles pour matcher".format(immeuble.immeuble_id.nuniq
 
 def affaire_avec_adresse(affaire):
     """
-       Elle prend la table <affaire ravalement> contenant adresse_id et la 
+       Elle prend la table <affaire ravalement> contenant adresse_id et la
        relie à l'adresse de la Base d'Adresse Nationale correspondante
     """
     assert 'adresse_id' in affaire.columns
@@ -284,27 +279,27 @@ if __name__ == '__main__':
     ##############################
     #####   Etape MERGE  #########
     #############################
-    
+
     #Table créées aux étapes précédentes: pv, incitation, arrete, facade, immeuble
-    
+
     # HYPOTHESE PV
-    # On va garder un pv par affaire 
-    # généralement lorsqu'on a plusiseurs pv pour une affaire c'est souvent 
-    # le même immeuble mais des façades différentes: donc on va garder juste une 
+    # On va garder un pv par affaire
+    # généralement lorsqu'on a plusiseurs pv pour une affaire c'est souvent
+    # le même immeuble mais des façades différentes: donc on va garder juste une
     # façade
     #pv.groupby(['affaire_id','facade_id']).size().sort_values()
     #pv = pv.groupby('affaire_id').first().reset_index()
-    
+
     # HYPOTHESE INCITATION
     #On va garder une incitation par affaire
     ##incitation.groupby('affaire_id').size().sort_values()
     #incitation.query("affaire_id == 4935")
-    ##2 incitations (en 2007 puis en 2008) à la même adresse sur 3 façades: 
+    ##2 incitations (en 2007 puis en 2008) à la même adresse sur 3 façades:
     ## chaque fois ça a donné des arrêtés différents
     #incitation.query("affaire_id == 2704")
     ##même constat
     #incitation = incitation.groupby('affaire_id').first().reset_index()
-    
+
     pv_incitation = pv.merge(incitation,
                              on = ['affaire_id',
     #                               'facade_id',
@@ -313,11 +308,11 @@ if __name__ == '__main__':
     #                         indicator = '_merge_incitation',
                              suffixes = ['_pv','_incitation'],
                              )
-    
+
     # HYPOTHESE ARRETE
     # On va garder un arrêté par affaire
     #arrete = arrete.groupby('affaire_id').first().reset_index()
-    
+
     arrete.drop('adresse_id', axis = 1 , inplace =True)
     arrete.rename(columns = {'facade_id':'facade_arrete_id'},inplace = True)
     pv_incitation_arrete = pv_incitation.merge(arrete,
@@ -331,9 +326,9 @@ if __name__ == '__main__':
     #les adresses venant de pv,incitation: seulement 37 % cohérentes
     # je préfère enlever les adresses de la table arrete
     #TODO: Faire mieux?
-    
+
     #TODO: faire une table niveau facade, niveau immeuble, niveau adresse, niveau parcelle
-    
+
     #####Infos façades####
     facade.drop(['possedecbles','possedeterr','recolable'],axis=1, inplace = True)
     pv_incitation_arrete_facade = pv_incitation_arrete.merge(facade,
@@ -347,13 +342,13 @@ if __name__ == '__main__':
                                           suffixes = ['','_pv'],
     #                                      indicator = '_merge_facade_pv',
                                           )
-   
+
     pv_incitation_arrete_facade.rename(columns = {'copropriete':'copropriete_pv',
-                                 'designation':'designation_pv', 
-                                 'batiment_id':'batiment_id_pv', 
+                                 'designation':'designation_pv',
+                                 'batiment_id':'batiment_id_pv',
                                  'type_facade':'type_facade_pv',
-                                 'hauteur_facade':'hauteur_facade_pv', 
-                                 'materiau_facade':'materiau_facade_pv', 
+                                 'hauteur_facade':'hauteur_facade_pv',
+                                 'materiau_facade':'materiau_facade_pv',
                                  'affectation_facade':'affectation_facade_pv'},
                       inplace = True)
     pv_incitation_arrete_facade.drop(['facade_id','facade_id_pv'],
@@ -385,7 +380,7 @@ if __name__ == '__main__':
     pv_incitation_arrete_facade.drop(['facade_id','facade_arrete_id'],
                                      axis=1,inplace = True)
     #####Fin infos façades######
-    
+
     affaire = pv_incitation_arrete_facade.merge(immeuble,
                                 on = ['immeuble_id',
     #                                  'adresse_id',
@@ -394,16 +389,16 @@ if __name__ == '__main__':
                                 suffixes = ['','_immeuble'],
     #                            indicator = '_merge_immeuble',
                                 )
-    ######## Adresse ########### 
-    #Plusieurs id adresse: adresse_id, adresse_id incitation, 
+    ######## Adresse ###########
+    #Plusieurs id adresse: adresse_id, adresse_id incitation,
     # adresse_id_pv, adresse_id_arrete, adresse_id_immeuble
     affaire.drop(['adresse_id_pv', 'adresse_id_arrete','adresse_id_immeuble',
                   'adresse_id_incitation'],
-                 axis = 1, 
+                 axis = 1,
                  inplace = True)
     ravalement = affaire_avec_adresse(affaire)
     ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
-    
+
     #####Ecrire sur .csv ######
     path_ravalement = os.path.join(path_output,'ravalement.csv')
     ravalement.to_csv(path_ravalement)
