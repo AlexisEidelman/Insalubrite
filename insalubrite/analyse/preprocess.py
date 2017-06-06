@@ -77,9 +77,10 @@ def to_qualitative(tab, nombre_de_division = 4):
         if numeriques[col].nunique() < 20: # on pourrait mettre len(numeriques)/100 par exemple 
             numeriques.loc[:,col] = numeriques[col].astype('object')
         else:
-            numeriques.loc[:,col] = pd.qcut(numeriques.loc[:,col],
+            numeriques.loc[:,col] = pd.qcut(numeriques.loc[:,col].rank(method='first'),
                                      nombre_de_division,
-                                     duplicates='drop') 
+#                                     duplicates='drop'
+                                     ) 
     
     out = tab.select_dtypes(exclude=['float']).join(numeriques)
     assert out.shape == tab.shape    
