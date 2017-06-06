@@ -390,8 +390,8 @@ def add_ravalement(table, force=False):
                             table_raval['date_creation'].astype(str)
     
     from_pv = ['immeuble_id', 'pv_ravalement_id', 'date_creation_pv','date_envoi_pv',
-               #'designation_pv', 'batiment_id_pv', 'type_facade_pv',
-               #'hauteur_facade_pv', 'materiau_facade_pv', 'affectation_facade_pv'
+               'designation_pv', 'batiment_id_pv', 'type_facade_pv',
+               'hauteur_facade_pv', 'materiau_facade_pv', 'affectation_facade_pv'
                 ]
     table_raval.loc[~select_on_date_pv, from_pv] = np.nan
     #Pour incitation

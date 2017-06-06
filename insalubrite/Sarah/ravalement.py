@@ -355,7 +355,7 @@ if __name__ == '__main__':
                                  'hauteur_facade':'hauteur_facade_pv', 
                                  'materiau_facade':'materiau_facade_pv', 
                                  'affectation_facade':'affectation_facade_pv'},
-                      inplace = True)
+                                 inplace = True)
     pv_incitation_arrete_facade.drop(['facade_id','facade_id_pv'],
                                      axis=1,inplace = True)
     pv_incitation_arrete_facade = pv_incitation_arrete_facade.merge(facade,
@@ -371,6 +371,14 @@ if __name__ == '__main__':
                                           )
     pv_incitation_arrete_facade.drop(['facade_id','facade_id_incitation'],
                                      axis=1,inplace = True)
+    pv_incitation_arrete_facade.rename(columns = {'copropriete':'copropriete_incitation',
+                                 'designation':'designation_incitation', 
+                                 'batiment_id':'batiment_id_incitation', 
+                                 'type_facade':'type_facade_incitation',
+                                 'hauteur_facade':'hauteur_facade_incitation', 
+                                 'materiau_facade':'materiau_facade_incitation', 
+                                 'affectation_facade':'affectation_facade_incitation'},
+                                 inplace = True)
     pv_incitation_arrete_facade = pv_incitation_arrete_facade.merge(facade,
                                           left_on = ['facade_arrete_id',
     #                                                 'adresse_id',
@@ -384,6 +392,14 @@ if __name__ == '__main__':
                                           )
     pv_incitation_arrete_facade.drop(['facade_id','facade_arrete_id'],
                                      axis=1,inplace = True)
+    pv_incitation_arrete_facade.rename(columns = {'copropriete':'copropriete_arrete',
+                                 'designation':'designation_arrete', 
+                                 'batiment_id':'batiment_id_arrete', 
+                                 'type_facade':'type_facade_arrete',
+                                 'hauteur_facade':'hauteur_facade_arrete', 
+                                 'materiau_facade':'materiau_facade_arrete', 
+                                 'affectation_facade':'affectation_facade_arrete'},
+                                 inplace = True)
     #####Fin infos façades######
     
     affaire = pv_incitation_arrete_facade.merge(immeuble,
