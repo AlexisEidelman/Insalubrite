@@ -364,6 +364,19 @@ def add_pp(table, force=False):
 ###    Ravalement      ###
 ##########################
 
+def _select(table, date_select, var_to_clean):
+    """
+       Fonction auxiliaire: sélectionne une table par rapport à date création
+       d'une affaire d'hygiene
+    """
+    assert 'date_creation' in table.columns
+    assert date_select in table.columns
+    select_on_date = table[date_select] < table['date_creation'].astype(str)
+    table.loc[~select_on_date, var_to_clean] = np.nan
+    return table
+
+
+
 def add_ravalement(table, force=False):
     ####Préparation ravalement####
     ravalement = _read_or_generate_data(os.path.join(path_output, 'ravalement.csv'),
@@ -371,7 +384,7 @@ def add_ravalement(table, force=False):
                                         force=force,
                                         )
     ravalement.rename(columns = {'affaire_id':'affaire_id_raval'}, inplace = True)
-    ravalement.drop(['Unnamed: 0','adresse_ban','adresse_ban_score','adresse_ban_type',
+    ravalement.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
                      'code_cadastre','codeinsee','codepostal'],
                     axis = 1, inplace = True)
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
@@ -381,45 +394,74 @@ def add_ravalement(table, force=False):
     table_raval = table.merge(ravalement,
                               on='adresse_ban_id',
                               how='left',
-                              indicator='match_raval',
+                              # indicator='match_raval',
                               )
     
     #  récupérer la date pour vérifier qu'on est avant la visite
     #Pour PV
-    select_on_date_pv = table_raval['date_creation_pv'] <  \
-                            table_raval['date_creation'].astype(str)
-    
-    from_pv = ['immeuble_id', 'pv_ravalement_id', 'date_creation_pv','date_envoi_pv',
-               'designation_pv', 'batiment_id_pv', 'type_facade_pv',
-               'hauteur_facade_pv', 'materiau_facade_pv', 'affectation_facade_pv'
-                ]
-    table_raval.loc[~select_on_date_pv, from_pv] = np.nan
+    _select(table_raval, 
+            date_select = 'date_creation_pv', 
+            var_to_clean = ['immeuble_id', 'pv_ravalement_id', 'date_creation_pv',
+                            'date_envoi_pv','designation_pv', 'batiment_id_pv', 
+                            'type_facade_pv','hauteur_facade_pv', 
+                            'materiau_facade_pv', 'affectation_facade_pv'],
+            )
+#    select_on_date_pv = table_raval['date_creation_pv'] <  \
+#                            table_raval['date_creation'].astype(str)
+#    
+#    from_pv = ['immeuble_id', 'pv_ravalement_id', 'date_creation_pv','date_envoi_pv',
+#               'designation_pv', 'batiment_id_pv', 'type_facade_pv',
+#               'hauteur_facade_pv', 'materiau_facade_pv', 'affectation_facade_pv'
+#                ]
+#    table_raval.loc[~select_on_date_pv, from_pv] = np.nan
     #Pour incitation
-    select_on_date_incitation = table_raval['date_envoi_incitation_ravalement'] <  \
-                            table_raval['date_creation'].astype(str)
-    
-    from_incitation = ['incitation_ravalement_id', 'date_envoi_incitation_ravalement',
-                       'delai_incitation_raval_en_jours', 'arrete_suite_a_incitation_id',
-                       'arrete_suite_a_incitation',
-                       'designation_incitation', 'batiment_id_incitation', 
-                       'type_facade_incitation','hauteur_facade_incitation', 
-                       'materiau_facade_incitation', 'affectation_facade_incitation'
-                       ]
-    table_raval.loc[~select_on_date_incitation, from_incitation] = np.nan
+    _select(table_raval, 
+            date_select = 'date_envoi_incitation_ravalement', 
+            var_to_clean = ['incitation_ravalement_id', 'date_envoi_incitation_ravalement',
+                            'delai_incitation_raval_en_jours', 'arrete_suite_a_incitation_id',
+                            'arrete_suite_a_incitation',
+                            'designation_incitation', 'batiment_id_incitation', 
+                            'type_facade_incitation','hauteur_facade_incitation', 
+                            'materiau_facade_incitation', 'affectation_facade_incitation'
+                            ],
+            )
+#    select_on_date_incitation = table_raval['date_envoi_incitation_ravalement'] <  \
+#                            table_raval['date_creation'].astype(str)
+#    
+#    from_incitation = ['incitation_ravalement_id', 'date_envoi_incitation_ravalement',
+#                       'delai_incitation_raval_en_jours', 'arrete_suite_a_incitation_id',
+#                       'arrete_suite_a_incitation',
+#                       'designation_incitation', 'batiment_id_incitation', 
+#                       'type_facade_incitation','hauteur_facade_incitation', 
+#                       'materiau_facade_incitation', 'affectation_facade_incitation'
+#                       ]
+#    table_raval.loc[~select_on_date_incitation, from_incitation] = np.nan
     #Pour arrete
-    select_on_date_arrete = table_raval['date_envoi_arrete'] <  \
-                            table_raval['date_creation'].astype(str)
-    
-    from_arrete = ['arrete_ravalement_id', 'date_delai_arrete',
-                   'date_enregistrement_arrete', 'date_envoi_arrete',
-                   'date_notification_arrete', 'date_signature_arrete',
-                   'date_visite_arrete', 'numero', 'injonction_id',
-                   'delai_arrete_raval_en_jours',
-                   'designation_arrete', 'batiment_id_arrete', 
-                   'type_facade_arrete','hauteur_facade_arrete', 
-                   'materiau_facade_arrete', 'affectation_facade_arrete'
-                   ]
-    table_raval.loc[~select_on_date_arrete, from_arrete] = np.nan
+    _select(table_raval, 
+            date_select = 'date_envoi_arrete', 
+            var_to_clean = ['arrete_ravalement_id', 'date_delai_arrete',
+                            'date_enregistrement_arrete', 'date_envoi_arrete',
+                            'date_notification_arrete', 'date_signature_arrete',
+                            'date_visite_arrete', 'numero', 'injonction_id',
+                            'delai_arrete_raval_en_jours',
+                            'designation_arrete', 'batiment_id_arrete', 
+                            'type_facade_arrete','hauteur_facade_arrete', 
+                            'materiau_facade_arrete', 'affectation_facade_arrete'
+                            ],
+            )
+#    select_on_date_arrete = table_raval['date_envoi_arrete'] <  \
+#                            table_raval['date_creation'].astype(str)
+#    
+#    from_arrete = ['arrete_ravalement_id', 'date_delai_arrete',
+#                   'date_enregistrement_arrete', 'date_envoi_arrete',
+#                   'date_notification_arrete', 'date_signature_arrete',
+#                   'date_visite_arrete', 'numero', 'injonction_id',
+#                   'delai_arrete_raval_en_jours',
+#                   'designation_arrete', 'batiment_id_arrete', 
+#                   'type_facade_arrete','hauteur_facade_arrete', 
+#                   'materiau_facade_arrete', 'affectation_facade_arrete'
+#                   ]
+#    table_raval.loc[~select_on_date_arrete, from_arrete] = np.nan
     
     #TODO: mieux gérer les NA
 #    table_pp['dossier prefecture'].fillna('Pas de dossier', inplace=True)
@@ -446,7 +488,7 @@ def add_infos_niveau_adresse(tab, force_all=False,
 
 
 if __name__ == '__main__':
-    force_all = False
+    force_all = True
     
     # colonne_en_plus, c'est les colonnes associée à des adresses
     # que l'on va chercher dans sarah, elles ne sont pas forcément

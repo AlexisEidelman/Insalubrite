@@ -22,10 +22,13 @@ def split_by_date(tab, serie_date, train_size=0.75):
     assert serie_date in tab.columns
     
     nb_train_rows = int(len(tab)*train_size)
-    out_tab = tab.sort_values('date')
+    out_tab = tab.sort_values(serie_date)
+    del out_tab[serie_date]
     
     train = out_tab.iloc[:nb_train_rows]
     test = out_tab.iloc[nb_train_rows:]
+    print("Dans le jeu de test, il y a les visites postérieures à",
+          tab[serie_date].iloc[nb_train_rows].values[0])
     return (train.drop(['est_insalubre'], axis=1),
             test.drop(['est_insalubre'], axis=1),
             train['est_insalubre'],

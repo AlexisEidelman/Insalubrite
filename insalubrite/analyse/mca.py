@@ -2,7 +2,7 @@
 """
 """
 
-from data import get_data, preprocess_data
+from data import get_data 
 import mca
 
 import matplotlib.pyplot as plt

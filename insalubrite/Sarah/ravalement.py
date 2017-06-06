@@ -417,4 +417,4 @@ if __name__ == '__main__':
 
     #####Ecrire sur .csv ######
     path_ravalement = os.path.join(path_output,'ravalement.csv')
-    ravalement.to_csv(path_ravalement)
+    ravalement.to_csv(path_ravalement, encoding="utf8", index=False)

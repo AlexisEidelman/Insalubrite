@@ -5,12 +5,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import pandas as pd
+from tpot import TPOTClassifier
 
 from data import get_data
 import preprocess
-
 from split import simple_split
-from tpot import TPOTClassifier
+
 
 tab_ini = get_data('batiment')
 tab = preprocess.keep_cols_for_analysis(tab_ini)
@@ -34,8 +34,6 @@ pipeline_optimizer.fit(X_train, y_train)
 print(pipeline_optimizer.score(X_test, y_test))
 pipeline_optimizer.export('tpot_exported_pipeline.py')
 
-pipeline_optimizer.predict_proba(X_test)
-pd.Series(pipeline_optimizer.predict(X_test)).value_counts()
 
 # on veut savoir si on claase bien les 150 premiers:
 proba = pipeline_optimizer.predict_proba(X_test)
