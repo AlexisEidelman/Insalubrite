@@ -9,20 +9,14 @@ import pandas as pd
 from data import get_data
 import preprocess
 
-from sklearn.model_selection import train_test_split
+from split import simple_split
 from tpot import TPOTClassifier
 
 tab_ini = get_data('batiment')
 tab = preprocess.keep_cols_for_analysis(tab_ini)
 float_tab = preprocess.to_float(tab)
 
-
-X = float_tab.drop(['est_insalubre'], axis=1)
-Y = float_tab['est_insalubre']
-X_train, X_test, y_train, y_test = train_test_split(X, Y,
-                                                    train_size=0.75, test_size=0.25)
-# TODO: faire qu'il soit possible de séparer par date. 
-# par exemple en ordonnant tab
+X_train, X_test, y_train, y_test  simple_split(tab)
 
 #quali_tab = preprocess.to_qualitative(tab, 4)
 #
