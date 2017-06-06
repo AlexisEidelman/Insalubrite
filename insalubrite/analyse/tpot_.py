@@ -9,14 +9,17 @@ from tpot import TPOTClassifier
 
 from data import get_data
 import preprocess
-from split import simple_split
+from split import simple_split, split_by_date
 
 
 tab_ini = get_data('batiment')
 tab = preprocess.keep_cols_for_analysis(tab_ini)
 float_tab = preprocess.to_float(tab)
 
-X_train, X_test, y_train, y_test = simple_split(tab)
+float_tab['date'] = pd.to_datetime(tab_ini['date_creation'])
+float_tab = float_tab[float_tab['date'] > '2009']
+X_train, X_test, y_train, y_test = split_by_date(float_tab, 'date')
+
 
 #quali_tab = preprocess.to_qualitative(tab, 4)
 #
