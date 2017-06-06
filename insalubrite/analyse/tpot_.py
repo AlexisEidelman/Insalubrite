@@ -16,7 +16,7 @@ tab_ini = get_data('batiment')
 tab = preprocess.keep_cols_for_analysis(tab_ini)
 float_tab = preprocess.to_float(tab)
 
-X_train, X_test, y_train, y_test  simple_split(tab)
+X_train, X_test, y_train, y_test = simple_split(tab)
 
 #quali_tab = preprocess.to_qualitative(tab, 4)
 #
