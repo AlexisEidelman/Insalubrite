@@ -64,59 +64,6 @@ def pv_table():
                         )
     return table
 
-pv = pv_table()
-print("{} affaires de ravalement dans {} immeubles".format(pv.affaire_id.nunique(),
-      pv.immeuble_id.nunique()))
-print("{} procès verbaux de ravalement".format(pv.pv_ravalement_id.nunique()))
-#la longueur de table pv est supérieure aux nombres d'affaires car
-#La même affaire peut avoir plusieurs pv
-#pv.pv_ravalement_id.value_counts(dropna=False)
-#pv.query("pv_ravalement_id == 57632")
-
-############################
-###Travail sur façade#######
-###########################
-est_reliee_a('facade')
-## ('facade', 'affectfacade_id', 'affectfacade'),
-## ('facade', 'materfacade_id', 'materfacade'),
-# ('facade', 'batiment_id', 'batiment'),
-## ('facade', 'hautfacade_id', 'hautfacade'),
-# ('facade', 'adresse_id', 'adresse'),
-## ('facade', 'typefacade_id', 'typefacade')]
-def facade_table():
-    """
-       Crée la table <façade> qui donne des infos sur chaque façade: son nom
-       (voir désignation), sa hauteur, le matériau de construction.
-    """
-    facade = read_table('facade')
-    facade.rename(columns = {'id':'facade_id'},inplace = True)
-    ####Merge avec type facade###
-    def add_info(table_ini, info_table_name, col):
-        info_table = read_table(info_table_name)
-        info_table.drop(['active','ordre'], axis = 1, inplace = True)
-        info_table.rename(columns = {'id':col[0],'libelle':col[1]},
-                          inplace = True,
-                          )
-        table = table_ini.merge(info_table, on = col[0], how = 'left')
-        table.drop([col[0]], axis = 1, inplace = True)
-        return table
-    ####Merge avec type facade###
-    table = add_info(facade,'typefacade',['typefacade_id','type_facade'])
-    ###Merge avec haut facade###
-    table = add_info(table, 'hautfacade',['hautfacade_id','hauteur_facade'])
-    ####Merge avec mater facade###
-    table = add_info(table, 'materfacade',['materfacade_id','materiau_facade'])
-    ####Merge avec affect facade###
-    table = add_info(table, 'affectfacade',['affectfacade_id','affectation_facade'])
-    ####Variables inutiles####
-    #TODO: vérifier que c'est effectivement inutile
-    table.drop(['the_geom'], axis = 1, inplace = True)
-    return table
-
-facade = facade_table()
-print("{} différentes façades pour {} bâtiments".format(facade.facade_id.nunique(),
-      facade.batiment_id.nunique()))
-
 
 ###### Incitation au ravalement (dans le cadre d'une affaire) ######
 # une incitation au ravalement est l'analogue d'une prescription dans une
@@ -172,13 +119,6 @@ def incitation_table():
     incitation['arrete_suite_a_incitation'] = incitation['arrete_suite_a_incitation_id'].notnull()
     return incitation
 
-incitation = incitation_table()
-print("{} incitations".format(incitation.incitation_ravalement_id.nunique()))
-
-incitation.query("(affaire_id == 3266)&(facade_id == 65573)")
-exple = ['adresse_id','affaire_id','date_envoi_incitation_ravalement','facade_id']
-incitation.groupby(exple).size().sort_values(ascending = False)
-
 #### Arrêté Ravalement ############
 def arrete_table():
     """
@@ -213,8 +153,52 @@ def arrete_table():
                                     how = 'left')
 
     return table
-arrete = arrete_table()
-print("{} arrêtés".format(arrete.arrete_ravalement_id.nunique()))
+
+
+############################
+###      Façade     #######
+###########################
+est_reliee_a('facade')
+## ('facade', 'affectfacade_id', 'affectfacade'),
+## ('facade', 'materfacade_id', 'materfacade'),
+# ('facade', 'batiment_id', 'batiment'),
+## ('facade', 'hautfacade_id', 'hautfacade'),
+# ('facade', 'adresse_id', 'adresse'),
+## ('facade', 'typefacade_id', 'typefacade')]
+def facade_table():
+    """
+       Crée la table <façade> qui donne des infos sur chaque façade: son nom
+       (voir désignation), sa hauteur, le matériau de construction.
+    """
+    facade = read_table('facade')
+    facade.rename(columns = {'id':'facade_id'},inplace = True)
+    ####Merge avec type facade###
+    def add_info(table_ini, info_table_name, col):
+        info_table = read_table(info_table_name)
+        info_table.drop(['active','ordre'], axis = 1, inplace = True)
+        info_table.rename(columns = {'id':col[0],'libelle':col[1]},
+                          inplace = True,
+                          )
+        table = table_ini.merge(info_table, on = col[0], how = 'left')
+        table.drop([col[0]], axis = 1, inplace = True)
+        return table
+    ####Merge avec type facade###
+    table = add_info(facade,'typefacade',['typefacade_id','type_facade'])
+    ###Merge avec haut facade###
+    table = add_info(table, 'hautfacade',['hautfacade_id','hauteur_facade'])
+    ####Merge avec mater facade###
+    table = add_info(table, 'materfacade',['materfacade_id','materiau_facade'])
+    ####Merge avec affect facade###
+    table = add_info(table, 'affectfacade',['affectfacade_id','affectation_facade'])
+    ####Variables inutiles####
+    #TODO: vérifier que c'est effectivement inutile
+    table.drop(['the_geom','possedecbles','possedeterr','recolable'], 
+               axis = 1, inplace = True)
+    return table
+
+facade = facade_table()
+print("{} différentes façades pour {} bâtiments".format(facade.facade_id.nunique(),
+      facade.batiment_id.nunique()))
 
 #### Immeuble ############
 def immeuble_table():
@@ -277,7 +261,7 @@ def affaire_avec_adresse(affaire):
 
 if __name__ == '__main__':
     ##############################
-    #####   Etape MERGE  #########
+    #####   Etape FINALE  #########
     #############################
 
     #Table créées aux étapes précédentes: pv, incitation, arrete, facade, immeuble
@@ -290,6 +274,34 @@ if __name__ == '__main__':
     #pv.groupby(['affaire_id','facade_id']).size().sort_values()
     #pv = pv.groupby('affaire_id').first().reset_index()
 
+    def pv_final():
+        pv = pv_table()
+        print("{} affaires de ravalement dans {} immeubles".format(pv.affaire_id.nunique(),
+              pv.immeuble_id.nunique()))
+        print("{} procès verbaux de ravalement".format(pv.pv_ravalement_id.nunique()))
+        #la longueur de table pv est supérieure aux nombres d'affaires car
+        #La même affaire peut avoir plusieurs pv
+        #pv.pv_ravalement_id.value_counts(dropna=False)
+        #pv.query("pv_ravalement_id == 57632")
+        
+        pv = pv.merge(facade,
+                      on = 'facade_id',
+                      how = 'left',
+                      #indicator = '_merge_facade_pv',
+                      )
+        ## Etape rename ##
+        facades_infos = ['copropriete','designation','batiment_id','type_facade',
+                         'hauteur_facade','materiau_facade','affectation_facade']
+        facades_pv = [col + '_pv' for col in facades_infos]
+        rename_facades_pv = dict(zip(facades_infos, facades_pv))
+        #rename_facades_pv['id'] = 'pv_ravalement_id'
+        pv.rename(columns = rename_facades_pv, inplace = True)
+    
+        pv.drop('facade_id', axis=1,inplace = True)
+        return pv
+    
+    pv_ravalement = pv_final()
+   
     # HYPOTHESE INCITATION
     #On va garder une incitation par affaire
     ##incitation.groupby('affaire_id').size().sort_values()
@@ -299,122 +311,80 @@ if __name__ == '__main__':
     #incitation.query("affaire_id == 2704")
     ##même constat
     #incitation = incitation.groupby('affaire_id').first().reset_index()
+    
+    def incitation_final():
+        incitation = incitation_table()
+        print("{} incitations".format(incitation.incitation_ravalement_id.nunique()))
+        incitation.drop('adresse_id', axis=1, inplace = True)
+        
+        incitation = incitation.merge(facade,
+                                      on = 'facade_id',
+                                      how = 'left',
+                                      indicator = '_merge_facade_incitation',
+                                      )
+        ## Etape rename ##
+        facades_infos = ['copropriete','designation','batiment_id','type_facade',
+                         'hauteur_facade','materiau_facade','affectation_facade']
+        facades_incitation = [col + '_incitation' for col in facades_infos]
+        rename_facades_incitation = dict(zip(facades_infos, facades_incitation))
+        incitation.rename(columns = rename_facades_incitation, inplace = True)
 
-    pv_incitation = pv.merge(incitation,
-                             on = ['affaire_id',
-    #                               'facade_id',
-                                   ],
-                             how = 'left',
-    #                         indicator = '_merge_incitation',
-                             suffixes = ['_pv','_incitation'],
-                             )
+        incitation.drop('facade_id', axis=1, inplace = True)
+        return incitation
 
+    incitation_ravalement = incitation_final()
+    
+    
     # HYPOTHESE ARRETE
     # On va garder un arrêté par affaire
     #arrete = arrete.groupby('affaire_id').first().reset_index()
+    def arrete_final():
+        arrete = arrete_table()
+        print("{} arrêtés".format(arrete.arrete_ravalement_id.nunique()))
 
-    arrete.drop('adresse_id', axis = 1 , inplace =True)
-    arrete.rename(columns = {'facade_id':'facade_arrete_id'},inplace = True)
-    pv_incitation_arrete = pv_incitation.merge(arrete,
-                                               on = 'affaire_id',
-                                               how = 'left',
-    #                                           suffixes = ['','_arrete'],
-    #                                           indicator = '_merge_arrete',
-                                                )
-    #pv_incitation_arrete.query("adresse_id == adresse_id_arrete").shape
-    #les adresses des affaires dans la table arrete ne sont pas cohérentes avec
-    #les adresses venant de pv,incitation: seulement 37 % cohérentes
-    # je préfère enlever les adresses de la table arrete
-    #TODO: Faire mieux?
+        arrete.drop('adresse_id', axis = 1 , inplace =True)
+        arrete = arrete.merge(facade,
+                              on = 'facade_id',
+                              how = 'left',
+                              #indicator = '_merge_facade_arrete',
+                              )
+        ## Etape rename ##
+        facades_infos = ['copropriete','designation','batiment_id','type_facade',
+                         'hauteur_facade','materiau_facade','affectation_facade']
+        facades_arrete = [col + '_arrete' for col in facades_infos]
+        rename_facades_arrete = dict(zip(facades_infos, facades_arrete))
+        arrete.rename(columns = rename_facades_arrete, inplace = True)
+        arrete.drop('facade_id', axis=1, inplace = True)
+        return arrete
+    
+    arrete_ravalement = arrete_final()
 
-    #TODO: faire une table niveau facade, niveau immeuble, niveau adresse, niveau parcelle
-
-    #####Infos façades####
-    facade.drop(['possedecbles','possedeterr','recolable'],axis=1, inplace = True)
-    pv_incitation_arrete_facade = pv_incitation_arrete.merge(facade,
-                                          left_on = ['facade_id_pv',
-    #                                                 'adresse_id'
-                                                     ],
-                                          right_on = ['facade_id',
-    #                                                  'adresse_id',
-                                                      ],
-                                          how = 'left',
-                                          suffixes = ['','_pv'],
-    #                                      indicator = '_merge_facade_pv',
-                                          )
-
-    pv_incitation_arrete_facade.rename(columns = {'copropriete':'copropriete_pv',
-                                 'designation':'designation_pv',
-                                 'batiment_id':'batiment_id_pv',
-                                 'type_facade':'type_facade_pv',
-                                 'hauteur_facade':'hauteur_facade_pv',
-                                 'materiau_facade':'materiau_facade_pv',
-                                 'affectation_facade':'affectation_facade_pv'},
-                                 inplace = True)
-    pv_incitation_arrete_facade.drop(['facade_id','facade_id_pv'],
-                                     axis=1,inplace = True)
-    pv_incitation_arrete_facade = pv_incitation_arrete_facade.merge(facade,
-                                          left_on = ['facade_id_incitation',
-    #                                                 'adresse_id',
-                                                     ],
-                                          right_on = ['facade_id',
-    #                                                  'adresse_id',
-                                                      ],
-                                          suffixes = ['','_incitation'],
-                                          how = 'left',
-    #                                      indicator = '_merge_facade_incitation',
-                                          )
-    pv_incitation_arrete_facade.drop(['facade_id','facade_id_incitation'],
-                                     axis=1,inplace = True)
-    pv_incitation_arrete_facade.rename(columns = {'copropriete':'copropriete_incitation',
-                                 'designation':'designation_incitation', 
-                                 'batiment_id':'batiment_id_incitation', 
-                                 'type_facade':'type_facade_incitation',
-                                 'hauteur_facade':'hauteur_facade_incitation', 
-                                 'materiau_facade':'materiau_facade_incitation', 
-                                 'affectation_facade':'affectation_facade_incitation'},
-                                 inplace = True)
-    pv_incitation_arrete_facade = pv_incitation_arrete_facade.merge(facade,
-                                          left_on = ['facade_arrete_id',
-    #                                                 'adresse_id',
-                                                     ],
-                                          right_on = ['facade_id',
-    #                                                  'adresse_id',
-                                                      ],
-                                          how = 'left',
-                                          suffixes = ['','_arrete'],
-    #                                      indicator = '_merge_facade_arrete',
-                                          )
-    pv_incitation_arrete_facade.drop(['facade_id','facade_arrete_id'],
-                                     axis=1,inplace = True)
-    pv_incitation_arrete_facade.rename(columns = {'copropriete':'copropriete_arrete',
-                                 'designation':'designation_arrete', 
-                                 'batiment_id':'batiment_id_arrete', 
-                                 'type_facade':'type_facade_arrete',
-                                 'hauteur_facade':'hauteur_facade_arrete', 
-                                 'materiau_facade':'materiau_facade_arrete', 
-                                 'affectation_facade':'affectation_facade_arrete'},
-                                 inplace = True)
-    #####Fin infos façades######
-
-    affaire = pv_incitation_arrete_facade.merge(immeuble,
-                                on = ['immeuble_id',
-    #                                  'adresse_id',
-                                      ],
-                                how = 'left',
-                                suffixes = ['','_immeuble'],
-    #                            indicator = '_merge_immeuble',
-                                )
+    #TODO
+    ##### Merge IMMEUBLE ####
+#    affaire = pv_incitation_arrete_facade.merge(immeuble,
+#                                on = ['immeuble_id',
+#    #                                  'adresse_id',
+#                                      ],
+#                                how = 'left',
+#                                suffixes = ['','_immeuble'],
+#    #                            indicator = '_merge_immeuble',
+#                                )
+    
     ######## Adresse ###########
-    #Plusieurs id adresse: adresse_id, adresse_id incitation,
-    # adresse_id_pv, adresse_id_arrete, adresse_id_immeuble
-    affaire.drop(['adresse_id_pv', 'adresse_id_arrete','adresse_id_immeuble',
-                  'adresse_id_incitation'],
-                 axis = 1,
-                 inplace = True)
-    ravalement = affaire_avec_adresse(affaire)
-    ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
+    
+    pv_ravalement = affaire_avec_adresse(pv_ravalement)
+    incitation_ravalement = affaire_avec_adresse(incitation_ravalement)
+    arrete_ravalement = affaire_avec_adresse(arrete_ravalement)
+    
+    pv_ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
+    incitation_ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
+    arrete_ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
 
     #####Ecrire sur .csv ######
-    path_ravalement = os.path.join(path_output,'ravalement.csv')
-    ravalement.to_csv(path_ravalement, encoding="utf8", index=False)
+    path_pv_ravalement = os.path.join(path_output,'pv_ravalement.csv')
+    path_incitation_ravalement = os.path.join(path_output,'incitation_ravalement.csv')
+    path_arrete_ravalement = os.path.join(path_output,'arrete_ravalement.csv')
+    
+    pv_ravalement.to_csv(path_pv_ravalement, encoding="utf8", index=False)
+    incitation_ravalement.to_csv(path_incitation_ravalement, encoding="utf8", index=False)
+    arrete_ravalement.to_csv(path_arrete_ravalement, encoding="utf8", index=False)

@@ -366,8 +366,8 @@ def add_pp(table, force=False):
 
 def _select(table, date_select, var_to_clean):
     """
-       Fonction auxiliaire: sélectionne une table par rapport à date création
-       d'une affaire d'hygiene
+       Fonction auxiliaire: enlève d'une table les informations qui sont 
+       postérieures à la date création d'une affaire d'hygiene
     """
     assert 'date_creation' in table.columns
     assert date_select in table.columns
@@ -377,21 +377,20 @@ def _select(table, date_select, var_to_clean):
 
 
 
-def add_ravalement(table, force=False):
+def add_pv_ravalement(table, force=False):
     ####Préparation ravalement####
-    ravalement = _read_or_generate_data(os.path.join(path_output, 'ravalement.csv'),
+    pv_ravalement = _read_or_generate_data(os.path.join(path_output, 'pv_ravalement.csv'),
                                         'insalubrite.Sarah.ravalement',
                                         force=force,
                                         )
-    ravalement.rename(columns = {'affaire_id':'affaire_id_raval'}, inplace = True)
-    ravalement.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
-                     'code_cadastre','codeinsee','codepostal'],
+    pv_ravalement.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
+                     'code_cadastre','codeinsee','codepostal','affaire_id'],
                     axis = 1, inplace = True)
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
-    ravalement = ravalement[~ravalement['adresse_ban_id'].duplicated(keep='last')]
+    pv_ravalement = pv_ravalement[~pv_ravalement['adresse_ban_id'].duplicated(keep='last')]
     
     #var_ravalement_to_keep = ['adresse_ban_id']
-    table_raval = table.merge(ravalement,
+    table_raval = table.merge(pv_ravalement,
                               on='adresse_ban_id',
                               how='left',
                               # indicator='match_raval',
@@ -406,14 +405,27 @@ def add_ravalement(table, force=False):
                             'type_facade_pv','hauteur_facade_pv', 
                             'materiau_facade_pv', 'affectation_facade_pv'],
             )
-#    select_on_date_pv = table_raval['date_creation_pv'] <  \
-#                            table_raval['date_creation'].astype(str)
-#    
-#    from_pv = ['immeuble_id', 'pv_ravalement_id', 'date_creation_pv','date_envoi_pv',
-#               'designation_pv', 'batiment_id_pv', 'type_facade_pv',
-#               'hauteur_facade_pv', 'materiau_facade_pv', 'affectation_facade_pv'
-#                ]
-#    table_raval.loc[~select_on_date_pv, from_pv] = np.nan
+    return table_raval
+
+def add_incitation_ravalement(table, force=False):
+    ####Préparation ravalement####
+    incitation = _read_or_generate_data(os.path.join(path_output, 'incitation_ravalement.csv'),
+                                        'insalubrite.Sarah.ravalement',
+                                        force=force,
+                                        )
+    incitation.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
+                     'code_cadastre','codeinsee','codepostal','affaire_id'],
+                    axis = 1, inplace = True)
+    # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
+    incitation = incitation[~incitation['adresse_ban_id'].duplicated(keep='last')]
+    
+    #var_ravalement_to_keep = ['adresse_ban_id']
+    table_raval = table.merge(incitation,
+                              on='adresse_ban_id',
+                              how='left',
+                              # indicator='match_raval',
+                              )
+    
     #Pour incitation
     _select(table_raval, 
             date_select = 'date_envoi_incitation_ravalement', 
@@ -425,17 +437,27 @@ def add_ravalement(table, force=False):
                             'materiau_facade_incitation', 'affectation_facade_incitation'
                             ],
             )
-#    select_on_date_incitation = table_raval['date_envoi_incitation_ravalement'] <  \
-#                            table_raval['date_creation'].astype(str)
-#    
-#    from_incitation = ['incitation_ravalement_id', 'date_envoi_incitation_ravalement',
-#                       'delai_incitation_raval_en_jours', 'arrete_suite_a_incitation_id',
-#                       'arrete_suite_a_incitation',
-#                       'designation_incitation', 'batiment_id_incitation', 
-#                       'type_facade_incitation','hauteur_facade_incitation', 
-#                       'materiau_facade_incitation', 'affectation_facade_incitation'
-#                       ]
-#    table_raval.loc[~select_on_date_incitation, from_incitation] = np.nan
+    return table_raval
+
+def add_arrete_ravalement(table, force=False):
+    ####Préparation ravalement####
+    arrete = _read_or_generate_data(os.path.join(path_output, 'arrete_ravalement.csv'),
+                                        'insalubrite.Sarah.ravalement',
+                                        force=force,
+                                        )
+    arrete.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
+                     'code_cadastre','codeinsee','codepostal','affaire_id'],
+                    axis = 1, inplace = True)
+    # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
+    arrete = arrete[~arrete['adresse_ban_id'].duplicated(keep='last')]
+    
+    #var_ravalement_to_keep = ['adresse_ban_id']
+    table_raval = table.merge(arrete,
+                              on='adresse_ban_id',
+                              how='left',
+                              # indicator='match_raval',
+                              )
+    
     #Pour arrete
     _select(table_raval, 
             date_select = 'date_envoi_arrete', 
@@ -449,19 +471,7 @@ def add_ravalement(table, force=False):
                             'materiau_facade_arrete', 'affectation_facade_arrete'
                             ],
             )
-#    select_on_date_arrete = table_raval['date_envoi_arrete'] <  \
-#                            table_raval['date_creation'].astype(str)
-#    
-#    from_arrete = ['arrete_ravalement_id', 'date_delai_arrete',
-#                   'date_enregistrement_arrete', 'date_envoi_arrete',
-#                   'date_notification_arrete', 'date_signature_arrete',
-#                   'date_visite_arrete', 'numero', 'injonction_id',
-#                   'delai_arrete_raval_en_jours',
-#                   'designation_arrete', 'batiment_id_arrete', 
-#                   'type_facade_arrete','hauteur_facade_arrete', 
-#                   'materiau_facade_arrete', 'affectation_facade_arrete'
-#                   ]
-#    table_raval.loc[~select_on_date_arrete, from_arrete] = np.nan
+
     
     #TODO: mieux gérer les NA
 #    table_pp['dossier prefecture'].fillna('Pas de dossier', inplace=True)
@@ -482,13 +492,18 @@ def add_infos_niveau_adresse(tab, force_all=False,
     assert len(tab3) == len(tab)
     tab4 = add_pp(tab3, force_all or force_pp)
     assert len(tab4) == len(tab)
-    tab5 = add_ravalement(tab4, force_all or force_ravalement)
+    #Ravalement
+    tab5 = add_pv_ravalement(tab4, force_all or force_ravalement)
     assert len(tab5) == len(tab)
-    return tab5
+    tab6 = add_incitation_ravalement(tab5, force_all or force_ravalement)
+    assert len(tab6) == len(tab)
+    tab7 = add_arrete_ravalement(tab6, force_all or force_ravalement)
+    assert len(tab7) == len(tab)
+    return tab7
 
 
 if __name__ == '__main__':
-    force_all = True
+    force_all = False
     
     # colonne_en_plus, c'est les colonnes associée à des adresses
     # que l'on va chercher dans sarah, elles ne sont pas forcément
