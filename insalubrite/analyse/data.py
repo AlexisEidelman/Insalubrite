@@ -57,7 +57,7 @@ def _nettoyage_brutal(table):
     # Il y 188 cadastre de Sarah qui n'ont pas été retrouvé dans les bases
     # Apur au niveau cadastral
     table = table[table['M2_SHAB'].notnull()]
-    
+        
     # Il y a des valeurs nulles dans la suface habitable par exemple 
     table = table[table['M2_SHAB'] > 0]
     # retire table['est_insalubre'].value_counts()
@@ -190,8 +190,6 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
     # dans tous les cas, il faut la retirer
     del tab['realisation_saturnisme']
 
-    tab = _nettoyage_brutal(tab)
-
     if not pompier_par_intevention:
         tab.loc[:,'intevention_bspp'] = tab[colonnes_pompiers].sum(axis=1)
         tab.drop(colonnes_pompiers, axis=1, inplace=True)
@@ -209,6 +207,7 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
     # on met la répartitions des logement en ratio du nombre de logements
     for col in cols_type_logement + cols_taille_logements + cols_nb_pieces:
         tab[col] /= tab['NB_LG']
+        
 
     if not repartition_logement_par_nb_pieces:
         tab.drop(cols_nb_pieces, axis=1, inplace=True)
@@ -224,14 +223,16 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
         tab.drop(['AN_MAX', 'AN_BATLG', 'AN_BATLOA', 'AN_BATSUR'], axis=1, inplace=True)
 
 
+    tab = _nettoyage_brutal(tab)
     output = get_niveau(tab, niveau)
 
     # format des variables
     # les booléens codés par sarah en 0, 1 et 2 avec des NaN
     # NB: il faut le faire après get_niveau
     for var in ['possedecaves', 'copropriete']:
-        temp = output[var].fillna(-1)
-        output.loc[:, var] = temp.astype(int).astype(str)
+        if var in output.columns:
+            temp = output[var].fillna(-1)
+            output.loc[:, var] = temp.astype(int).astype(str)
     
     output.loc[:,'hotel meublé'] = output['hotel meublé'].astype(bool)
     output.loc[:,'B_PUBLIC'] = output['B_PUBLIC'] == 'O'
@@ -240,7 +241,17 @@ def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
 
 
 if __name__ == "__main__":
-    tab = get_data("batiment", libre_est_salubre=True, niveau_de_gravite=False)
+#    tab = get_data("batiment", libre_est_salubre=True, niveau_de_gravite=False)
+
+    tab = get_data('adresse', libre_est_salubre=True, niveau_de_gravite=False,
+                 pompier_par_intevention = True,
+                 demandeur_par_type = True,
+                 repartition_logement_par_nb_pieces=False,
+                 repartition_logement_par_taille=True,
+                 repartition_logement_par_type=False,
+                 toutes_les_annes = False,
+                 )
+
 
     def analyse_temporelle(table):
         date = pd.to_datetime(table['date_creation'])
