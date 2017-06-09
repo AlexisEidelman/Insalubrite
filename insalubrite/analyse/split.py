@@ -27,8 +27,9 @@ def split_by_date(tab, serie_date, train_size=0.75):
     
     train = out_tab.iloc[:nb_train_rows]
     test = out_tab.iloc[nb_train_rows:]
-    print("Dans le jeu de test, il y a les visites postérieures à",
-          tab[serie_date].iloc[nb_train_rows].values[0])
+    print("On place dans le set d'apprentissage les visites qui ont eu lieu avant",
+          tab[serie_date].iloc[nb_train_rows].date(),
+            "et dans le jeu de test, celle qui ont eu lieu après")
     return (train.drop(['est_insalubre'], axis=1),
             test.drop(['est_insalubre'], axis=1),
             train['est_insalubre'],
@@ -45,5 +46,5 @@ if __name__ == '__main__':
     tab = preprocess.keep_cols_for_analysis(tab_ini)
     float_tab = preprocess.to_float(tab)
     
-    float_tab['date'] = pd.to_datetime(tab_ini['date_creation'])
+    float_tab.loc[:,'date'] = pd.to_datetime(tab_ini['date_creation'])
     a, b, c, d = split_by_date(float_tab, "date")
