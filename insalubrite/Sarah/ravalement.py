@@ -117,6 +117,7 @@ def incitation_table():
     incitation.rename(columns = {'arrete_ravalement_id':'arrete_suite_a_incitation_id'},
                  inplace = True)
     incitation['arrete_suite_a_incitation'] = incitation['arrete_suite_a_incitation_id'].notnull()
+    incitation.drop('arrete_suite_a_incitation_id', axis = 1, inplace = True)
     return incitation
 
 #### Arrêté Ravalement ############
@@ -151,7 +152,9 @@ def arrete_table():
     table = arrete_ravalement.merge(arrete_ravalement_facade,
                                     on = 'arrete_ravalement_id',
                                     how = 'left')
-
+    
+    table['injonction'] = table['injonction_id'].notnull()
+    table.drop('injonction_id', axis = 1, inplace = True)
     return table
 
 
@@ -301,7 +304,9 @@ if __name__ == '__main__':
         return pv
     
     pv_ravalement = pv_final()
-   
+    pv_ravalement = pv_ravalement[pv_ravalement.pv_ravalement_id.notnull()]
+    pv_ravalement.drop('date_envoi_pv', axis = 1, inplace = True)
+    
     # HYPOTHESE INCITATION
     #On va garder une incitation par affaire
     ##incitation.groupby('affaire_id').size().sort_values()
@@ -320,7 +325,7 @@ if __name__ == '__main__':
         incitation = incitation.merge(facade,
                                       on = 'facade_id',
                                       how = 'left',
-                                      indicator = '_merge_facade_incitation',
+                                      #indicator = '_merge_facade_incitation',
                                       )
         ## Etape rename ##
         facades_infos = ['copropriete','designation','batiment_id','type_facade',
@@ -333,7 +338,8 @@ if __name__ == '__main__':
         return incitation
 
     incitation_ravalement = incitation_final()
-    
+    incitation_ravalement = incitation_ravalement[
+            incitation_ravalement.incitation_ravalement_id.notnull()]
     
     # HYPOTHESE ARRETE
     # On va garder un arrêté par affaire
@@ -354,7 +360,10 @@ if __name__ == '__main__':
         facades_arrete = [col + '_arrete' for col in facades_infos]
         rename_facades_arrete = dict(zip(facades_infos, facades_arrete))
         arrete.rename(columns = rename_facades_arrete, inplace = True)
-        arrete.drop('facade_id', axis=1, inplace = True)
+        arrete.drop(['facade_id','date_enregistrement_arrete', 
+                     'date_envoi_arrete', 'date_notification_arrete', 
+                     'date_signature_arrete', 'date_visite_arrete'], 
+                    axis=1, inplace = True)
         return arrete
     
     arrete_ravalement = arrete_final()
@@ -369,22 +378,23 @@ if __name__ == '__main__':
 #                                suffixes = ['','_immeuble'],
 #    #                            indicator = '_merge_immeuble',
 #                                )
+    def _ravalement(table, suffixe, output):
+        table = affaire_avec_adresse(table)
+        table.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
+        table.rename(columns = {'libelle':'libelle_'+suffixe+'_ravalement'},
+                             inplace = True)
+        path_ravalement = os.path.join(path_output, output)
+        table.to_csv(path_ravalement, encoding="utf8", index=False)
+        return table
     
-    ######## Adresse ###########
+    pv_ravalement = _ravalement(pv_ravalement,'pv', 'pv_ravalement.csv')
+    incitation_ravalement = _ravalement(incitation_ravalement,'incitation', 
+                                        'incitation_ravalement.csv')
+    arrete_ravalement = _ravalement(arrete_ravalement, 'arrete', 
+                                    'arrete_ravalement.csv')
     
-    pv_ravalement = affaire_avec_adresse(pv_ravalement)
-    incitation_ravalement = affaire_avec_adresse(incitation_ravalement)
-    arrete_ravalement = affaire_avec_adresse(arrete_ravalement)
+    incitation_ravalement = incitation_ravalement[
+            incitation_ravalement.adresse_ban_id.notnull()]
+    arrete_ravalement = arrete_ravalement[
+            arrete_ravalement.adresse_ban_id.notnull()]
     
-    pv_ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
-    incitation_ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
-    arrete_ravalement.drop(['typeadresse','adresse_id'],axis=1,inplace = True)
-
-    #####Ecrire sur .csv ######
-    path_pv_ravalement = os.path.join(path_output,'pv_ravalement.csv')
-    path_incitation_ravalement = os.path.join(path_output,'incitation_ravalement.csv')
-    path_arrete_ravalement = os.path.join(path_output,'arrete_ravalement.csv')
-    
-    pv_ravalement.to_csv(path_pv_ravalement, encoding="utf8", index=False)
-    incitation_ravalement.to_csv(path_incitation_ravalement, encoding="utf8", index=False)
-    arrete_ravalement.to_csv(path_arrete_ravalement, encoding="utf8", index=False)
