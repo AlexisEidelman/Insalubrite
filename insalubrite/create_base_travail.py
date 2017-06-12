@@ -379,15 +379,18 @@ def _select(table, date_select, var_to_clean):
 
 def add_pv_ravalement(table, force=False):
     ####Préparation ravalement####
-    pv_ravalement = _read_or_generate_data(os.path.join(path_output, 'pv_ravalement.csv'),
+    pv_ravalement = _read_or_generate_data(os.path.join(path_output, 
+                                                        'pv_ravalement.csv'),
                                         'insalubrite.Sarah.ravalement',
                                         force=force,
                                         )
     pv_ravalement.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
-                     'code_cadastre','codeinsee','codepostal','affaire_id'],
+                     'code_cadastre','codeinsee','codepostal','affaire_id',
+                     'batiment_id_pv','immeuble_id', 'libelle_pv_ravalement'],
                     axis = 1, inplace = True)
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
-    pv_ravalement = pv_ravalement[~pv_ravalement['adresse_ban_id'].duplicated(keep='last')]
+    pv_ravalement = pv_ravalement[~pv_ravalement['adresse_ban_id'].duplicated(
+            keep='last')]
     
     #var_ravalement_to_keep = ['adresse_ban_id']
     table_raval = table.merge(pv_ravalement,
@@ -400,8 +403,7 @@ def add_pv_ravalement(table, force=False):
     #Pour PV
     _select(table_raval, 
             date_select = 'date_creation_pv', 
-            var_to_clean = ['immeuble_id', 'pv_ravalement_id', 'date_creation_pv',
-                            'date_envoi_pv','designation_pv', 'batiment_id_pv', 
+            var_to_clean = [ 'date_creation_pv','designation_pv', 
                             'type_facade_pv','hauteur_facade_pv', 
                             'materiau_facade_pv', 'affectation_facade_pv'],
             )
@@ -409,7 +411,8 @@ def add_pv_ravalement(table, force=False):
 
 def add_incitation_ravalement(table, force=False):
     ####Préparation ravalement####
-    incitation = _read_or_generate_data(os.path.join(path_output, 'incitation_ravalement.csv'),
+    incitation = _read_or_generate_data(os.path.join(path_output, 
+                                                     'incitation_ravalement.csv'),
                                         'insalubrite.Sarah.ravalement',
                                         force=force,
                                         )
@@ -429,19 +432,22 @@ def add_incitation_ravalement(table, force=False):
     #Pour incitation
     _select(table_raval, 
             date_select = 'date_envoi_incitation_ravalement', 
-            var_to_clean = ['incitation_ravalement_id', 'date_envoi_incitation_ravalement',
-                            'delai_incitation_raval_en_jours', 'arrete_suite_a_incitation_id',
+            var_to_clean = ['incitation_ravalement_id', 
+                            'date_envoi_incitation_ravalement',
+                            'delai_incitation_raval_en_jours',
                             'arrete_suite_a_incitation',
                             'designation_incitation', 'batiment_id_incitation', 
                             'type_facade_incitation','hauteur_facade_incitation', 
-                            'materiau_facade_incitation', 'affectation_facade_incitation'
+                            'materiau_facade_incitation', 
+                            'affectation_facade_incitation'
                             ],
             )
     return table_raval
 
 def add_arrete_ravalement(table, force=False):
     ####Préparation ravalement####
-    arrete = _read_or_generate_data(os.path.join(path_output, 'arrete_ravalement.csv'),
+    arrete = _read_or_generate_data(os.path.join(path_output, 
+                                                 'arrete_ravalement.csv'),
                                         'insalubrite.Sarah.ravalement',
                                         force=force,
                                         )
@@ -460,11 +466,9 @@ def add_arrete_ravalement(table, force=False):
     
     #Pour arrete
     _select(table_raval, 
-            date_select = 'date_envoi_arrete', 
+            date_select = 'date_delai_arrete', 
             var_to_clean = ['arrete_ravalement_id', 'date_delai_arrete',
-                            'date_enregistrement_arrete', 'date_envoi_arrete',
-                            'date_notification_arrete', 'date_signature_arrete',
-                            'date_visite_arrete', 'numero', 'injonction_id',
+                            'numero', 'injonction',
                             'delai_arrete_raval_en_jours',
                             'designation_arrete', 'batiment_id_arrete', 
                             'type_facade_arrete','hauteur_facade_arrete', 

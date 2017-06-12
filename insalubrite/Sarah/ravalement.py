@@ -62,6 +62,7 @@ def pv_table():
                         how = 'left',
                         #indicator = True,
                         )
+    
     return table
 
 
@@ -301,11 +302,15 @@ if __name__ == '__main__':
         pv.rename(columns = rename_facades_pv, inplace = True)
     
         pv.drop('facade_id', axis=1,inplace = True)
+        
+        
         return pv
     
     pv_ravalement = pv_final()
     pv_ravalement = pv_ravalement[pv_ravalement.pv_ravalement_id.notnull()]
     pv_ravalement.drop('date_envoi_pv', axis = 1, inplace = True)
+    pv_ravalement['pv_ravalement'] = pv_ravalement['pv_ravalement_id'].notnull()
+    pv_ravalement.drop('pv_ravalement_id', axis = 1, inplace = True)
     
     # HYPOTHESE INCITATION
     #On va garder une incitation par affaire
