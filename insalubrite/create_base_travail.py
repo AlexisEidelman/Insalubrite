@@ -379,35 +379,56 @@ def _select(table, date_select, var_to_clean):
 
 def add_pv_ravalement(table, force=False):
     ####Préparation ravalement####
-    pv_ravalement = _read_or_generate_data(os.path.join(path_output, 
+    pv = _read_or_generate_data(os.path.join(path_output, 
                                                         'pv_ravalement.csv'),
                                         'insalubrite.Sarah.ravalement',
                                         force=force,
                                         )
-    pv_ravalement.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
+    pv.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
                      'code_cadastre','codeinsee','codepostal','affaire_id',
                      'batiment_id_pv','immeuble_id', 'libelle_pv_ravalement'],
                     axis = 1, inplace = True)
-    # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
-    pv_ravalement = pv_ravalement[~pv_ravalement['adresse_ban_id'].duplicated(
-            keep='last')]
     
-    #var_ravalement_to_keep = ['adresse_ban_id']
-    table_raval = table.merge(pv_ravalement,
-                              on='adresse_ban_id',
-                              how='left',
-                              # indicator='match_raval',
-                              )
-    
-    #  récupérer la date pour vérifier qu'on est avant la visite
-    #Pour PV
-    _select(table_raval, 
-            date_select = 'date_creation_pv', 
-            var_to_clean = [ 'date_creation_pv','designation_pv', 
-                            'type_facade_pv','hauteur_facade_pv', 
-                            'materiau_facade_pv', 'affectation_facade_pv'],
-            )
-    return table_raval
+#    ==========================================================================
+    merge_pv = table[['affaire_id','adresse_ban_id','date_creation']].merge(pv,
+                       how='inner',
+                       on='adresse_ban_id',
+    #                   indicator='match_pv',
+                       )
+
+    select_on_date = merge_pv['date_creation_pv'] < merge_pv['date_creation']
+
+    merge_pv = merge_pv[select_on_date]
+
+    pv_by_affaire = pd.crosstab(merge_pv.affaire_id, merge_pv.affectation_facade_pv)
+
+    pv_by_affaire_columns =  pv_by_affaire.columns
+
+    table_pv = table.merge(pv_by_affaire,
+                       left_on='affaire_id',
+                       right_index=True,
+                       how='left',
+    #                   indicator='match_pv',
+                       )
+    #Travail sur les valeurs manquantes
+    table_pv[pv_by_affaire_columns] = table_pv[pv_by_affaire_columns].fillna(0)
+#    =======================================================================
+#    #var_ravalement_to_keep = ['adresse_ban_id']
+#    table_raval = table.merge(pv_ravalement,
+#                              on='adresse_ban_id',
+#                              how='left',
+#                              #indicator='match_raval',
+#                              )
+#    
+#    #  récupérer la date pour vérifier qu'on est avant la visite
+#    #Pour PV
+#    table_selected = _select(table_raval, 
+#                             date_select = 'date_creation_pv', 
+#                             var_to_clean = [ 'date_creation_pv','designation_pv', 
+#                                             'type_facade_pv','hauteur_facade_pv', 
+#                                             'materiau_facade_pv', 'affectation_facade_pv'],
+#                             )
+    return table_pv
 
 def add_incitation_ravalement(table, force=False):
     ####Préparation ravalement####
@@ -417,7 +438,8 @@ def add_incitation_ravalement(table, force=False):
                                         force=force,
                                         )
     incitation.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
-                     'code_cadastre','codeinsee','codepostal','affaire_id'],
+                     'code_cadastre','codeinsee','codepostal','affaire_id',
+                     'batiment_id_incitation','libelle_incitation_ravalement'],
                     axis = 1, inplace = True)
     # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
     incitation = incitation[~incitation['adresse_ban_id'].duplicated(keep='last')]

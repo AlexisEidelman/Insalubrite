@@ -345,6 +345,7 @@ if __name__ == '__main__':
     incitation_ravalement = incitation_final()
     incitation_ravalement = incitation_ravalement[
             incitation_ravalement.incitation_ravalement_id.notnull()]
+    incitation_ravalement.drop('incitation_ravalement_id', axis = 1, inplace = True)
     
     # HYPOTHESE ARRETE
     # On va garder un arrêté par affaire
