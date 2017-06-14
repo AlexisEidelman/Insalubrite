@@ -318,8 +318,10 @@ def add_pp(table, force=False):
 
 ######Fonction auxiliaire####
 
-def _add(path, read, module, force, drop=True, drop_features,interest_feature,
-         interest_feature_origin, table, date):
+def _add(path, read, module, force, 
+         drop_features,interest_feature,
+         interest_feature_origin, table, date,
+         ):
     """
     """
     assert 'date_creation' in table.columns
@@ -328,7 +330,7 @@ def _add(path, read, module, force, drop=True, drop_features,interest_feature,
                                         module,
                                         force=force,
                                         )
-    if drop:
+    if drop_features:
         table_to_add.drop(drop_features,
                     axis = 1, inplace = True)
     
@@ -373,7 +375,6 @@ def add_bspp(table, force=False):
                 read='paris_ban.csv', 
                 module = 'insalubrite.bspp.read',
                 force = force,
-                drop = False,
                 drop_features = [],
                 interest_feature = 'Libelle_Motif',
                 interest_feature_origin = '',
@@ -415,6 +416,7 @@ def add_incitation_ravalement(table, force=False):
                 table = table,
                 date = 'date_envoi_incitation_ravalement')
 
+
 def add_arrete_ravalement(table, force=False):
     return _add(path = path_output,
                 read='arrete_ravalement.csv', 
@@ -429,6 +431,7 @@ def add_arrete_ravalement(table, force=False):
                 interest_feature_origin = 'Nb_arrete_par_',
                 table = table,
                 date = 'date_delai_arrete')
+
 
 def add_infos_niveau_adresse(tab, force_all=False,
                              force_bspp=False,
