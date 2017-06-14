@@ -422,7 +422,7 @@ def _select(table, date_select, var_to_clean):
 def add_pv_ravalement(table, force=False):
     return _add(path = path_output,
                 read='pv_ravalement.csv', 
-                module = 'insalubrite.Sarah.ravalement',
+                module = 'insalubrite.Sarah.ravalement.pv_ravalement',
                 force = force,
                 drop_features = ['adresse_ban','adresse_ban_score',
                                  'adresse_ban_type','code_cadastre','codeinsee',
@@ -437,14 +437,13 @@ def add_pv_ravalement(table, force=False):
 def add_incitation_ravalement(table, force=False):
     return _add(path = path_output,
                 read='incitation_ravalement.csv', 
-                module = 'insalubrite.Sarah.ravalement',
+                module = 'insalubrite.Sarah.ravalement.incitation_ravalement',
                 force = force,
                 drop_features = ['adresse_ban','adresse_ban_score',
                                  'adresse_ban_type','code_cadastre','codeinsee',
                                  'codepostal','affaire_id',
                                  'batiment_id_incitation',
-                                 'libelle_incitation_ravalement',
-                                 'incitation_ravalement_id'],
+                                 'libelle_incitation_ravalement',],
                 interest_feature = 'affectation_facade_incitation',
                 interest_feature_origin = 'Nb_incitation_par_',
                 table = table,
@@ -453,7 +452,7 @@ def add_incitation_ravalement(table, force=False):
 def add_arrete_ravalement(table, force=False):
     return _add(path = path_output,
                 read='arrete_ravalement.csv', 
-                module = 'insalubrite.Sarah.ravalement',
+                module = 'insalubrite.Sarah.ravalement.arrete_ravalement',
                 force = force,
                 drop_features = ['adresse_ban','adresse_ban_score',
                                  'adresse_ban_type','code_cadastre','codeinsee',
@@ -490,7 +489,7 @@ def add_infos_niveau_adresse(tab, force_all=False,
 
 
 if __name__ == '__main__':
-    force_all = False
+    force_all = True
     
     # colonne_en_plus, c'est les colonnes associée à des adresses
     # que l'on va chercher dans sarah, elles ne sont pas forcément
