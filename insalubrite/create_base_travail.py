@@ -209,50 +209,6 @@ def add_infos_parcelles(table):
 
 
 
-###########################
-###         BSPP        ###
-###########################
-
-# l'APur a pris en compte deux fois au moins la même année.
-# quand il y a un engin
-
-# il y a un effet, à force de chercher, le STH trouve.
-
-def add_bspp(table, force=False):
-    bspp = _read_or_generate_data(
-        os.path.join(path_bspp, 'paris_ban.csv'),
-        'insalubrite.bspp.read',
-        force=force,
-        )
-
-    # trouver les intervention par affaire
-    merge_bspp = table[['affaire_id','adresse_ban_id','date_creation']].merge(bspp,
-                       how='inner',
-                       on='adresse_ban_id',
-    #                   indicator='match_bspp',
-                       )
-    merge_bspp['date_creation'] = pd.to_datetime(merge_bspp['date_creation'])
-    merge_bspp['Date_intervention'] = pd.to_datetime(merge_bspp['Date_intervention'])
-    select_on_date = merge_bspp['Date_intervention'] <  \
-            merge_bspp['date_creation']
-
-    merge_bspp = merge_bspp[select_on_date]
-
-    bspp_by_affaire = pd.crosstab(merge_bspp.affaire_id, merge_bspp.Libelle_Motif)
-
-    bspp_by_affaire_columns =  bspp_by_affaire.columns
-
-    table_bspp = table.merge(bspp_by_affaire,
-                       left_on='affaire_id',
-                       right_index=True,
-                       how='left',
-    #                   indicator='match_bspp',
-                       )
-
-
-    #Travail sur les valeurs manquantes
-    table_bspp[bspp_by_affaire_columns] = table_bspp[bspp_by_affaire_columns].fillna(0)
-    return table_bspp
 
 
 ###########################
@@ -360,6 +316,93 @@ def add_pp(table, force=False):
     table_pp['dossier prefecture'].fillna('Pas de dossier', inplace=True)
     return table_pp
 
+######Fonction auxiliaire####
+
+def _add(path, read, module, force, drop_features,interest_feature,
+         interest_feature_origin, table, date):
+    """
+    """
+    assert 'date_creation' in table.columns
+    #Preparing table to add
+    table_to_add = _read_or_generate_data(os.path.join(path, read),
+                                        module,
+                                        force=force,
+                                        )
+    table_to_add.drop(drop_features,
+                    axis = 1, inplace = True)
+    
+    merge = table[['affaire_id','adresse_ban_id','date_creation',
+                   ]].merge(table_to_add,
+                           how='inner',
+                           on='adresse_ban_id',
+                           )
+
+    select_on_date = merge[date] < merge['date_creation'].astype(str)
+
+    merge = merge[select_on_date]
+
+    by_affaire = pd.crosstab(merge.affaire_id, merge[interest_feature])
+    
+    ###Origin###
+    by_affaire_columns = [interest_feature_origin + col for col in by_affaire.columns]
+    rename_col = dict(zip(by_affaire.columns, by_affaire_columns))
+    by_affaire.rename(columns = rename_col, inplace = True)
+
+    final_table = table.merge(by_affaire,
+                       left_on='affaire_id',
+                       right_index=True,
+                       how='left',
+                       )
+    #Travail sur les valeurs manquantes
+    final_table[by_affaire_columns] = final_table[by_affaire_columns].fillna(0)
+
+    return final_table
+
+###########################
+###         BSPP        ###
+###########################
+
+# l'APur a pris en compte deux fois au moins la même année.
+# quand il y a un engin
+
+# il y a un effet, à force de chercher, le STH trouve.
+
+def add_bspp(table, force=False):
+    bspp = _read_or_generate_data(
+        os.path.join(path_bspp, 'paris_ban.csv'),
+        'insalubrite.bspp.read',
+        force=force,
+        )
+
+    # trouver les intervention par affaire
+    merge_bspp = table[['affaire_id','adresse_ban_id','date_creation']].merge(bspp,
+                       how='inner',
+                       on='adresse_ban_id',
+    #                   indicator='match_bspp',
+                       )
+    merge_bspp['date_creation'] = pd.to_datetime(merge_bspp['date_creation'])
+    merge_bspp['Date_intervention'] = pd.to_datetime(merge_bspp['Date_intervention'])
+    select_on_date = merge_bspp['Date_intervention'] <  \
+            merge_bspp['date_creation']
+
+    merge_bspp = merge_bspp[select_on_date]
+
+    bspp_by_affaire = pd.crosstab(merge_bspp.affaire_id, merge_bspp.Libelle_Motif)
+
+    bspp_by_affaire_columns =  bspp_by_affaire.columns
+
+    table_bspp = table.merge(bspp_by_affaire,
+                       left_on='affaire_id',
+                       right_index=True,
+                       how='left',
+    #                   indicator='match_bspp',
+                       )
+
+
+    #Travail sur les valeurs manquantes
+    table_bspp[bspp_by_affaire_columns] = table_bspp[bspp_by_affaire_columns].fillna(0)
+    return table_bspp
+
 ###########################
 ###    Ravalement      ###
 ##########################
@@ -376,133 +419,51 @@ def _select(table, date_select, var_to_clean):
     return table
 
 
-
 def add_pv_ravalement(table, force=False):
-    ####Préparation ravalement####
-    pv = _read_or_generate_data(os.path.join(path_output, 
-                                                        'pv_ravalement.csv'),
-                                        'insalubrite.Sarah.ravalement',
-                                        force=force,
-                                        )
-    pv.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
-                     'code_cadastre','codeinsee','codepostal','affaire_id',
-                     'batiment_id_pv','immeuble_id', 'libelle_pv_ravalement'],
-                    axis = 1, inplace = True)
+    return _add(path = path_output,
+                read='pv_ravalement.csv', 
+                module = 'insalubrite.Sarah.ravalement',
+                force = force,
+                drop_features = ['adresse_ban','adresse_ban_score',
+                                 'adresse_ban_type','code_cadastre','codeinsee',
+                                 'codepostal','affaire_id','batiment_id_pv',
+                                 'immeuble_id', 'libelle_pv_ravalement'],
+                interest_feature = 'affectation_facade_pv',
+                interest_feature_origin = 'Nb_pv_par_',
+                table = table,
+                date = 'date_creation_pv')
     
-#    ==========================================================================
-    merge_pv = table[['affaire_id','adresse_ban_id','date_creation']].merge(pv,
-                       how='inner',
-                       on='adresse_ban_id',
-    #                   indicator='match_pv',
-                       )
-
-    select_on_date = merge_pv['date_creation_pv'] < merge_pv['date_creation']
-
-    merge_pv = merge_pv[select_on_date]
-
-    pv_by_affaire = pd.crosstab(merge_pv.affaire_id, merge_pv.affectation_facade_pv)
-
-    pv_by_affaire_columns =  pv_by_affaire.columns
-
-    table_pv = table.merge(pv_by_affaire,
-                       left_on='affaire_id',
-                       right_index=True,
-                       how='left',
-    #                   indicator='match_pv',
-                       )
-    #Travail sur les valeurs manquantes
-    table_pv[pv_by_affaire_columns] = table_pv[pv_by_affaire_columns].fillna(0)
-#    =======================================================================
-#    #var_ravalement_to_keep = ['adresse_ban_id']
-#    table_raval = table.merge(pv_ravalement,
-#                              on='adresse_ban_id',
-#                              how='left',
-#                              #indicator='match_raval',
-#                              )
-#    
-#    #  récupérer la date pour vérifier qu'on est avant la visite
-#    #Pour PV
-#    table_selected = _select(table_raval, 
-#                             date_select = 'date_creation_pv', 
-#                             var_to_clean = [ 'date_creation_pv','designation_pv', 
-#                                             'type_facade_pv','hauteur_facade_pv', 
-#                                             'materiau_facade_pv', 'affectation_facade_pv'],
-#                             )
-    return table_pv
 
 def add_incitation_ravalement(table, force=False):
-    ####Préparation ravalement####
-    incitation = _read_or_generate_data(os.path.join(path_output, 
-                                                     'incitation_ravalement.csv'),
-                                        'insalubrite.Sarah.ravalement',
-                                        force=force,
-                                        )
-    incitation.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
-                     'code_cadastre','codeinsee','codepostal','affaire_id',
-                     'batiment_id_incitation','libelle_incitation_ravalement'],
-                    axis = 1, inplace = True)
-    # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
-    incitation = incitation[~incitation['adresse_ban_id'].duplicated(keep='last')]
-    
-    #var_ravalement_to_keep = ['adresse_ban_id']
-    table_raval = table.merge(incitation,
-                              on='adresse_ban_id',
-                              how='left',
-                              # indicator='match_raval',
-                              )
-    
-    #Pour incitation
-    _select(table_raval, 
-            date_select = 'date_envoi_incitation_ravalement', 
-            var_to_clean = ['incitation_ravalement_id', 
-                            'date_envoi_incitation_ravalement',
-                            'delai_incitation_raval_en_jours',
-                            'arrete_suite_a_incitation',
-                            'designation_incitation', 'batiment_id_incitation', 
-                            'type_facade_incitation','hauteur_facade_incitation', 
-                            'materiau_facade_incitation', 
-                            'affectation_facade_incitation'
-                            ],
-            )
-    return table_raval
+    return _add(path = path_output,
+                read='incitation_ravalement.csv', 
+                module = 'insalubrite.Sarah.ravalement',
+                force = force,
+                drop_features = ['adresse_ban','adresse_ban_score',
+                                 'adresse_ban_type','code_cadastre','codeinsee',
+                                 'codepostal','affaire_id',
+                                 'batiment_id_incitation',
+                                 'libelle_incitation_ravalement',
+                                 'incitation_ravalement_id'],
+                interest_feature = 'affectation_facade_incitation',
+                interest_feature_origin = 'Nb_incitation_par_',
+                table = table,
+                date = 'date_envoi_incitation_ravalement')
 
 def add_arrete_ravalement(table, force=False):
-    ####Préparation ravalement####
-    arrete = _read_or_generate_data(os.path.join(path_output, 
-                                                 'arrete_ravalement.csv'),
-                                        'insalubrite.Sarah.ravalement',
-                                        force=force,
-                                        )
-    arrete.drop(['adresse_ban','adresse_ban_score','adresse_ban_type',
-                     'code_cadastre','codeinsee','codepostal','affaire_id'],
-                    axis = 1, inplace = True)
-    # Tous les cas, sont positifs, on a besoin d'en avoir un par adresse_ban_id
-    arrete = arrete[~arrete['adresse_ban_id'].duplicated(keep='last')]
-    
-    #var_ravalement_to_keep = ['adresse_ban_id']
-    table_raval = table.merge(arrete,
-                              on='adresse_ban_id',
-                              how='left',
-                              # indicator='match_raval',
-                              )
-    
-    #Pour arrete
-    _select(table_raval, 
-            date_select = 'date_delai_arrete', 
-            var_to_clean = ['arrete_ravalement_id', 'date_delai_arrete',
-                            'numero', 'injonction',
-                            'delai_arrete_raval_en_jours',
-                            'designation_arrete', 'batiment_id_arrete', 
-                            'type_facade_arrete','hauteur_facade_arrete', 
-                            'materiau_facade_arrete', 'affectation_facade_arrete'
-                            ],
-            )
-
-    
-    #TODO: mieux gérer les NA
-#    table_pp['dossier prefecture'].fillna('Pas de dossier', inplace=True)
-    return table_raval
-
+    return _add(path = path_output,
+                read='arrete_ravalement.csv', 
+                module = 'insalubrite.Sarah.ravalement',
+                force = force,
+                drop_features = ['adresse_ban','adresse_ban_score',
+                                 'adresse_ban_type','code_cadastre','codeinsee',
+                                 'codepostal','affaire_id',
+                                 'libelle_arrete_ravalement','batiment_id_arrete',
+                                 'arrete_ravalement_id'],
+                interest_feature = 'affectation_facade_arrete',
+                interest_feature_origin = 'Nb_arrete_par_',
+                table = table,
+                date = 'date_delai_arrete')
 
 def add_infos_niveau_adresse(tab, force_all=False,
                              force_bspp=False,
@@ -567,7 +528,11 @@ if __name__ == '__main__':
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
     sarah_adresse = sarah_adresse[var_sarah_to_keep + ['adresse_ban_id'] + 
                                    colonnes_en_plus]
-
+    
+    sarah_adresse.hauteur_facade = sarah_adresse.hauteur_facade.fillna('Inconnu')
+    sarah_adresse.mode_entree_batiment = \
+                            sarah_adresse.mode_entree_batiment.fillna('Inconnu')
+    
     sarah_final = add_infos_niveau_adresse(sarah_adresse,
                              force_all,
                              force_bspp=False,
