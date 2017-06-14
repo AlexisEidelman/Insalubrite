@@ -318,7 +318,7 @@ def add_pp(table, force=False):
 
 ######Fonction auxiliaire####
 
-def _add(path, read, module, force, drop_features,interest_feature,
+def _add(path, read, module, force, drop=True, drop_features,interest_feature,
          interest_feature_origin, table, date):
     """
     """
@@ -328,7 +328,8 @@ def _add(path, read, module, force, drop_features,interest_feature,
                                         module,
                                         force=force,
                                         )
-    table_to_add.drop(drop_features,
+    if drop:
+        table_to_add.drop(drop_features,
                     axis = 1, inplace = True)
     
     merge = table[['affaire_id','adresse_ban_id','date_creation',
@@ -368,55 +369,20 @@ def _add(path, read, module, force, drop_features,interest_feature,
 # il y a un effet, à force de chercher, le STH trouve.
 
 def add_bspp(table, force=False):
-    bspp = _read_or_generate_data(
-        os.path.join(path_bspp, 'paris_ban.csv'),
-        'insalubrite.bspp.read',
-        force=force,
-        )
-
-    # trouver les intervention par affaire
-    merge_bspp = table[['affaire_id','adresse_ban_id','date_creation']].merge(bspp,
-                       how='inner',
-                       on='adresse_ban_id',
-    #                   indicator='match_bspp',
-                       )
-    merge_bspp['date_creation'] = pd.to_datetime(merge_bspp['date_creation'])
-    merge_bspp['Date_intervention'] = pd.to_datetime(merge_bspp['Date_intervention'])
-    select_on_date = merge_bspp['Date_intervention'] <  \
-            merge_bspp['date_creation']
-
-    merge_bspp = merge_bspp[select_on_date]
-
-    bspp_by_affaire = pd.crosstab(merge_bspp.affaire_id, merge_bspp.Libelle_Motif)
-
-    bspp_by_affaire_columns =  bspp_by_affaire.columns
-
-    table_bspp = table.merge(bspp_by_affaire,
-                       left_on='affaire_id',
-                       right_index=True,
-                       how='left',
-    #                   indicator='match_bspp',
-                       )
-
-
-    #Travail sur les valeurs manquantes
-    table_bspp[bspp_by_affaire_columns] = table_bspp[bspp_by_affaire_columns].fillna(0)
-    return table_bspp
+    return _add(path = path_bspp,
+                read='paris_ban.csv', 
+                module = 'insalubrite.bspp.read',
+                force = force,
+                drop = False,
+                drop_features = [],
+                interest_feature = 'Libelle_Motif',
+                interest_feature_origin = '',
+                table = table,
+                date = 'Date_intervention')
 
 ###########################
 ###    Ravalement      ###
 ##########################
-
-def _select(table, date_select, var_to_clean):
-    """
-       Fonction auxiliaire: enlève d'une table les informations qui sont 
-       postérieures à la date création d'une affaire d'hygiene
-    """
-    assert 'date_creation' in table.columns
-    assert date_select in table.columns
-    select_on_date = table[date_select] < table['date_creation'].astype(str)
-    table.loc[~select_on_date, var_to_clean] = np.nan
-    return table
 
 
 def add_pv_ravalement(table, force=False):
@@ -489,7 +455,7 @@ def add_infos_niveau_adresse(tab, force_all=False,
 
 
 if __name__ == '__main__':
-    force_all = True
+    force_all = False
     
     # colonne_en_plus, c'est les colonnes associée à des adresses
     # que l'on va chercher dans sarah, elles ne sont pas forcément
