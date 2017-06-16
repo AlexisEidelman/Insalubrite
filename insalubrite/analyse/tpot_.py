@@ -3,13 +3,14 @@
 from time import time
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
 import pandas as pd
 from tpot import TPOTClassifier
 
 from data import get_data
 import preprocess
 from split import simple_split, split_by_date
+from insalubrite.config_insal import path_output
 
 tab_ini = get_data('adresse', libre_est_salubre=True, niveau_de_gravite=False,
              pompier_par_intevention = True,
@@ -25,11 +26,13 @@ float_tab = preprocess.to_float(tab)
 
 float_tab.loc[:,'date'] = pd.to_datetime(tab_ini['date_creation'])
 float_tab = float_tab[float_tab['date'] > '2009']
+float_tab.to_csv(os.path.join(path_output,'data.csv'), 
+                 index = False, encoding = 'utf8')
 X_train, X_test, y_train, y_test = split_by_date(float_tab, 'date')
 
 pipeline_optimizer = TPOTClassifier()
 
-pipeline_optimizer = TPOTClassifier(generations=1, population_size=20, cv=5,
+pipeline_optimizer = TPOTClassifier(generations=10, population_size=20, cv=5,
                                     random_state=42, verbosity=2)
 
 pipeline_optimizer.fit(X_train, y_train)

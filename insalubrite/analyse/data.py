@@ -260,7 +260,7 @@ if __name__ == "__main__":
                  pompier_par_intevention = True,
                  demandeur_par_type = True,
                  repartition_logement_par_nb_pieces=False,
-                 repartition_logement_par_taille=False,
+                 repartition_logement_par_taille=True,
                  repartition_logement_par_type=False,
                  toutes_les_annes = False,
                  )
