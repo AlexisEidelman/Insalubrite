@@ -35,5 +35,5 @@ for name, col in tab_quali.select_dtypes(['bool']).iteritems():
 
 ncols = 8
 mca_ben = mca.mca(tab_quali, cols=tab_quali.columns.tolist())
-mca_ind = mca.mca(tab_quali, cols=tab_quali.columns.tolist(), benzecri=False)
+#mca_ind = mca.mca(tab_quali, cols=tab_quali.columns.tolist(), benzecri=False)
 
