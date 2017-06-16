@@ -56,10 +56,11 @@ def _nettoyage_brutal(table):
 
     # Il y 188 cadastre de Sarah qui n'ont pas été retrouvé dans les bases
     # Apur au niveau cadastral
+    
+    # Il y a des valeurs nulles dans la suface habitable par exemple 
     table = table[table['M2_SHAB'].notnull()]
         
-    # Il y a des valeurs nulles dans la suface habitable par exemple 
-    table = table[table['M2_SHAB'] > 0]
+    table = table[table['NB_LG'] > 0]
     # retire table['est_insalubre'].value_counts()
     # False    48
     # True     26
@@ -155,7 +156,19 @@ cols_nb_pieces = ['NB_PIEC_1', 'NB_PIEC_2', 'NB_PIEC_3', 'NB_PIE_4P',
 cols_taille_logements = ['NB_LG1_9', 'NB_LG1019', 'NB_LG2029',
                          'NB_LG3039', 'NB_LG4049', 'NB_LG5069',
                          'NB_LG7089', 'NB_LG_S90']
-
+cols_ravalement = ['Nb_pv_par_Autre','Nb_pv_par_Bureau', 
+                   'Nb_pv_par_Habitation', 'Nb_pv_par_Hôtel',
+                   'Nb_pv_par_Inconnu', 'Nb_pv_par_Mixte', 'Nb_pv_par_Ville de Paris',
+                   'Nb_incitation_par_Autre', 'Nb_incitation_par_Bureau',
+                   'Nb_incitation_par_Commerce', 'Nb_incitation_par_Habitation',
+                   'Nb_incitation_par_Hôtel', 'Nb_incitation_par_Inconnu',
+                   'Nb_incitation_par_Mixte', 'Nb_incitation_par_SNCF',
+                   'Nb_incitation_par_Ville de Paris', 'Nb_arrete_par_Autre',
+                   'Nb_arrete_par_Bureau', 'Nb_arrete_par_Commerce',
+                   'Nb_arrete_par_Habitation', 'Nb_arrete_par_Hôtel',
+                   'Nb_arrete_par_Inconnu', 'Nb_arrete_par_Mixte',
+                   'Nb_arrete_par_Ville de Paris'
+                   ]
 def get_data(niveau, libre_est_salubre=True, niveau_de_gravite=False,
              pompier_par_intevention = False,
              demandeur_par_type = False,
@@ -247,7 +260,7 @@ if __name__ == "__main__":
                  pompier_par_intevention = True,
                  demandeur_par_type = True,
                  repartition_logement_par_nb_pieces=False,
-                 repartition_logement_par_taille=True,
+                 repartition_logement_par_taille=False,
                  repartition_logement_par_type=False,
                  toutes_les_annes = False,
                  )
