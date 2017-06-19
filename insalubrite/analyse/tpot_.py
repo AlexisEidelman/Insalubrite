@@ -45,7 +45,7 @@ proba = pipeline_optimizer.predict_proba(X_test)
 proba_etre_insalubre = [x[1] for x in proba]
 proba = pd.Series(proba_etre_insalubre)
 
-prediction = proba.rank(ascending=False) < 150 + 1
+prediction = proba.rank(ascending=False, method = 'min') < 150 + 1
 y_test.loc[prediction.values].value_counts(normalize=True)
 
 autre_approche = pipeline_optimizer.predict(X_test) == 1
