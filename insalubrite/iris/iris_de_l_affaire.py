@@ -21,19 +21,23 @@ def get_iris(table):
     geoloc = gpd.GeoDataFrame(geo, geometry='geometry')
     geoloc.crs = {'init' :'epsg:4326'} # WPS84
 
-    path = "/home/sgmap/data/iris"
+    path = "/home/kevin/Desktop/data_etalab/Insalubrite/"
     path = os.path.join(path,
                         "CONTOURS-IRIS_2-1__SHP_LAMB93_FXX_2016-11-10",
                         'CONTOURS-IRIS',
                         '1_DONNEES_LIVRAISON_2015',
-                        "CONTOURS-IRIS_2-1_SHP_LAMB93_FE-2015"
-                        )
-    #path2 = os.path.join(path, 'CONTOURS-IRIS.shp')
-    #iris = gpd.read_file(path2)
-    ## test = fiona.open(path2)
-    #iris_paris = iris[iris.INSEE_COM.str.startswith('75')]
-    #iris_paris.to_file(os.path.join(path, 'CONTOURS-IRIS_Paris.shp'))
-    iris = gpd.read_file(os.path.join(path, 'CONTOURS-IRIS_Paris.shp'))
+                        "CONTOURS-IRIS_2-1_SHP_LAMB93_FE-2015")
+                        
+    if not os.path.exists(os.path.join(path, 'CONTOURS-IRIS_Paris.shp')):
+        path2 = os.path.join(path, 'CONTOURS-IRIS.shp')
+        iris = gpd.read_file(path2)
+        # test = fiona.open(path2)
+        iris_paris = iris[iris.INSEE_COM.str.startswith('75')]
+        iris_paris.to_file(os.path.join(path, 'CONTOURS-IRIS_Paris.shp'))
+        
+    else:
+        iris = gpd.read_file(os.path.join(path, 'CONTOURS-IRIS_Paris.shp'))
+
 
     # on transforme en lambert
     geolambert = geoloc.to_crs(iris.crs)
