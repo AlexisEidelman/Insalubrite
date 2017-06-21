@@ -29,8 +29,9 @@ from insalubrite.Sarah.read import read_table
 from insalubrite.Sarah.adresses import parcelles, adresses
 from insalubrite.Sarah.adresse_de_l_affaire import add_adresse_id
 from insalubrite.match_to_ban import merge_df_to_ban
+from insalubrite.iris.iris_de_l_affaire import get_iris
 
-from insalubrite.config_insal import path_bspp, path_output
+from insalubrite.config_insal import path_bspp, path_output, path_iris
 
 
 def _read_or_generate_data(path_csv, module, force=False):
@@ -365,12 +366,29 @@ def add_pp(table, force=False):
     table_pp['dossier prefecture'].fillna('Pas de dossier', inplace=True)
     return table_pp
 
+##########################
+#####  IRIS #############
+#########################
+
+def add_infos_niveau_iris(table, force = False):
+    #ajoute à la table les coordonnées iris
+    geo = get_iris(table)
+    #data socio éco de l'insee sur les iris
+    path = '/home/kevin/Desktop/open-moulinette-master/insee/data'
+    path_moulinette_paris = os.path.join(path, 'iris_paris.csv')
+    iris_paris = pd.read_csv(path_moulinette_paris, sep=';', encoding='utf8')
+    geo_extended = geo.merge(iris_paris,
+                             left_on = 'CODE_IRIS',
+                             right_on = 'IRIS',
+                             how = 'left')
+    return geo_extended
 
 def add_infos_niveau_adresse(tab, force_all=False,
                              force_bspp=False,
                              force_eau=False,
                              force_saturnisme=False,
-                             force_pp=False):
+                             force_pp=False,
+                             force_iris = False):
     tab1 = add_bspp(tab, force_all or force_bspp)
     assert len(tab1) == len(tab)
     tab2 = add_eau(tab1, force_all or force_eau)
@@ -379,7 +397,10 @@ def add_infos_niveau_adresse(tab, force_all=False,
     assert len(tab3) == len(tab)
     tab4 = add_pp(tab3, force_all or force_pp)
     assert len(tab4) == len(tab)
+    tab5 = add_infos_niveau_iris(tab4, force_all or force_iris)
+    assert len(tab5) == len(tab)
     return tab4
+
 
 
 if __name__ == '__main__':
