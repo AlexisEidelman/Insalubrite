@@ -7,3 +7,5 @@ path_bspp = ''
 path_apur = ''
 
 path_output= ''
+
+path_moulinette = '' # chemin des données générée par OpenMoulinette
