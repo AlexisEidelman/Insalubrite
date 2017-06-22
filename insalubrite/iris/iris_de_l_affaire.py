@@ -9,7 +9,7 @@ import os
 import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
-from insalubrite.config_insal import path_iris
+from insalubrite.config_insal import path_contours_iris
 
 def get_iris(table):
     assert 'longitude' in table.columns
@@ -22,7 +22,7 @@ def get_iris(table):
     geoloc = gpd.GeoDataFrame(geo, geometry='geometry')
     geoloc.crs = {'init' :'epsg:4326'} # WPS84
 
-    path = os.path.join(path_iris,
+    path = os.path.join(path_contours_iris,
                         "CONTOURS-IRIS_2-1__SHP_LAMB93_FXX_2016-11-10",
                         'CONTOURS-IRIS',
                         '1_DONNEES_LIVRAISON_2015',

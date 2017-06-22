@@ -30,8 +30,10 @@ from insalubrite.Sarah.adresses import parcelles, adresses
 from insalubrite.Sarah.adresse_de_l_affaire import add_adresse_id
 from insalubrite.match_to_ban import merge_df_to_ban
 from insalubrite.iris.iris_de_l_affaire import get_iris
+from insalubrite.iris.moulinette_paris import moulinette_paris
 
-from insalubrite.config_insal import path_bspp, path_output, path_iris
+from insalubrite.config_insal import (path_bspp, path_output,
+                                      path_moulinette)
 
 
 def _read_or_generate_data(path_csv, module, force=False):
@@ -343,9 +345,8 @@ def add_infos_niveau_iris(table, force = False):
                                     #indicator = True,
                                     )
     #data socio éco de l'insee sur les iris
-    path = '/home/kevin/Desktop/open-moulinette-master/insee/data'
-    path_moulinette_paris = os.path.join(path, 'iris_paris.csv')
-    iris_paris = pd.read_csv(path_moulinette_paris, sep=';', encoding='utf8')
+
+    iris_paris = moulinette_paris()
     iris_paris.rename(columns = {'IRIS':'CODE_IRIS'}, inplace = True)
     #Ajout infos niveau iris
     geo_extended = geo_iris_complete.merge(iris_paris,
