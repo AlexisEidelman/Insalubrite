@@ -110,8 +110,7 @@ def create_sarah_table(cols_from_bien_id=None):
         sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre'] = \
             sarah.loc[sarah['code_cadastre'].isnull(), 'code_cadastre_x']
         sarah.drop(['code_cadastre_x', 'code_cadastre_y'], axis=1, inplace=True)
-
-
+        
         # match ban
         match_possible = sarah['codepostal'].notnull() & sarah['libelle'].notnull()
         sarah_adresse = sarah[match_possible]
@@ -119,13 +118,13 @@ def create_sarah_table(cols_from_bien_id=None):
                                  os.path.join(path_output, 'temp.csv'),
                                  ['libelle', 'codepostal'],
                                  name_postcode = 'codepostal',
-                                 var_ban_to_keep =
-                                     ['result_label', 'result_score',
-                                      'result_id', 'result_type',
-                                      'latitude', 'longitude']
+                                 var_ban_to_keep=['result_label', 'result_score',
+                                                  'result_id', 'result_type',
+                                                  # on garde latitude et longitude
+                                                  # pour en trouver les iris
+                                                  'latitude', 'longitude']
                                  )
-        # on garde latitude et longitude pour en trouver les iris
-
+       
         sarah = sarah_adresse.append(sarah[~match_possible])
         return sarah
 
@@ -372,15 +371,26 @@ def add_pp(table, force=False):
 
 def add_infos_niveau_iris(table, force = False):
     #ajoute à la table les coordonnées iris
-    geo = get_iris(table)
+    var_geo = ['affaire_id', 'latitude', 'longitude',
+                         'libelle', 'adresse_ban_id']
+    geo = table[var_geo]
+    geo_iris = get_iris(geo)
+    geo_iris_complete = table.merge(geo_iris,
+                                    on = var_geo,
+                                    how= 'left',
+                                    #indicator = True,
+                                    )
     #data socio éco de l'insee sur les iris
     path = '/home/kevin/Desktop/open-moulinette-master/insee/data'
     path_moulinette_paris = os.path.join(path, 'iris_paris.csv')
     iris_paris = pd.read_csv(path_moulinette_paris, sep=';', encoding='utf8')
-    geo_extended = geo.merge(iris_paris,
-                             left_on = 'CODE_IRIS',
-                             right_on = 'IRIS',
-                             how = 'left')
+    iris_paris.rename(columns = {'IRIS':'CODE_IRIS'}, inplace = True)
+    #Ajout infos niveau iris
+    geo_extended = geo_iris_complete.merge(iris_paris,
+                                           on = ['CODE_IRIS','TYP_IRIS'],
+                                           how = 'left',
+                                           #indicator = True,
+                                           )
     return geo_extended
 
 def add_infos_niveau_adresse(tab, force_all=False,
@@ -399,7 +409,7 @@ def add_infos_niveau_adresse(tab, force_all=False,
     assert len(tab4) == len(tab)
     tab5 = add_infos_niveau_iris(tab4, force_all or force_iris)
     assert len(tab5) == len(tab)
-    return tab4
+    return tab5
 
 
 
@@ -412,6 +422,7 @@ if __name__ == '__main__':
     # avant la visite.
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
+    colonnes_iris = ['latitude', 'longitude']
 
     sarah = sarah_data(force_all, cols_from_bien_id=colonnes_en_plus)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
@@ -433,8 +444,10 @@ if __name__ == '__main__':
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
     sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
                                    'infractiontype_id', 'titre',
-                                   'code_cadastre', 'date_creation'] +
-                                   colonnes_en_plus]
+                                   'code_cadastre', 'date_creation',
+                                   'libelle'] +
+                                   colonnes_en_plus +
+                                   colonnes_iris ]
 
     sarah_final = add_infos_niveau_adresse(sarah_adresse,
                              force_all,
