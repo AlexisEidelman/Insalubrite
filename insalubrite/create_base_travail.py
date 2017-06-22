@@ -198,11 +198,16 @@ def add_infos_parcelles(table):
 
     #prépare table pour le match
     code = table['code_cadastre']
-    table['ASP'] = '0' + code.str[3:5] + '-' + code.str[6:8] + '-' + code.str[8:]
+    table.loc[:,'ASP'] = '0' + code.str[3:5] + '-' + code.str[6:8] + '-' + code.str[8:]
 
     table_parcelle = table.merge(parcelle, on=['ASP'],
                        how='left', indicator=True)
     table_parcelle._merge.value_counts()
+#    table_parcelle['codeinsee'] = table_parcelle['codeinsee_y']
+#    table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee'] = \
+#        table_parcelle.loc[table_parcelle['codeinsee'].isnull(), 'codeinsee_x']
+#    table_parcelle.drop(['codeinsee_x', 'codeinsee_y'], axis=1, inplace=True)
+
     # 188 match raté
     # =>  non matché, est-ce une question de mise à jour ? table_parcelle[table_parcelle._merge == 'left_only']
 
@@ -214,50 +219,6 @@ def add_infos_parcelles(table):
 
 
 
-###########################
-###         BSPP        ###
-###########################
-
-# l'APur a pris en compte deux fois au moins la même année.
-# quand il y a un engin
-
-# il y a un effet, à force de chercher, le STH trouve.
-
-def add_bspp(table, force=False):
-    bspp = _read_or_generate_data(
-        os.path.join(path_bspp, 'paris_ban.csv'),
-        'insalubrite.bspp.read',
-        force=force,
-        )
-
-    # trouver les intervention par affaire
-    merge_bspp = table[['affaire_id','adresse_ban_id','date_creation']].merge(bspp,
-                       how='inner',
-                       on='adresse_ban_id',
-    #                   indicator='match_bspp',
-                       )
-    merge_bspp['date_creation'] = pd.to_datetime(merge_bspp['date_creation'])
-    merge_bspp['Date_intervention'] = pd.to_datetime(merge_bspp['Date_intervention'])
-    select_on_date = merge_bspp['Date_intervention'] <  \
-            merge_bspp['date_creation']
-
-    merge_bspp = merge_bspp[select_on_date]
-
-    bspp_by_affaire = pd.crosstab(merge_bspp.affaire_id, merge_bspp.Libelle_Motif)
-
-    bspp_by_affaire_columns =  bspp_by_affaire.columns
-
-    table_bspp = table.merge(bspp_by_affaire,
-                       left_on='affaire_id',
-                       right_index=True,
-                       how='left',
-    #                   indicator='match_bspp',
-                       )
-
-
-    #Travail sur les valeurs manquantes
-    table_bspp[bspp_by_affaire_columns] = table_bspp[bspp_by_affaire_columns].fillna(0)
-    return table_bspp
 
 
 ###########################
@@ -365,6 +326,7 @@ def add_pp(table, force=False):
     table_pp['dossier prefecture'].fillna('Pas de dossier', inplace=True)
     return table_pp
 
+
 ##########################
 #####  IRIS #############
 #########################
@@ -393,12 +355,132 @@ def add_infos_niveau_iris(table, force = False):
                                            )
     return geo_extended
 
+######Fonction auxiliaire####
+
+def _add(path, read, module, force, 
+         drop_features,interest_feature,
+         interest_feature_origin, table, date,
+         ):
+    """
+    """
+    assert 'date_creation' in table.columns
+    #Preparing table to add
+    table_to_add = _read_or_generate_data(os.path.join(path, read),
+                                        module,
+                                        force=force,
+                                        )
+    if drop_features:
+        table_to_add.drop(drop_features,
+                    axis = 1, inplace = True)
+    
+    merge = table[['affaire_id','adresse_ban_id','date_creation',
+                   ]].merge(table_to_add,
+                           how='inner',
+                           on='adresse_ban_id',
+                           )
+
+    select_on_date = merge[date] < merge['date_creation'].astype(str)
+
+    merge = merge[select_on_date]
+
+    by_affaire = pd.crosstab(merge.affaire_id, merge[interest_feature])
+    
+    ###Origin###
+    by_affaire_columns = [interest_feature_origin + col for col in by_affaire.columns]
+    rename_col = dict(zip(by_affaire.columns, by_affaire_columns))
+    by_affaire.rename(columns = rename_col, inplace = True)
+
+    final_table = table.merge(by_affaire,
+                       left_on='affaire_id',
+                       right_index=True,
+                       how='left',
+                       )
+    #Travail sur les valeurs manquantes
+    final_table[by_affaire_columns] = final_table[by_affaire_columns].fillna(0)
+
+    return final_table
+
+###########################
+###         BSPP        ###
+###########################
+
+# l'APur a pris en compte deux fois au moins la même année.
+# quand il y a un engin
+
+# il y a un effet, à force de chercher, le STH trouve.
+
+def add_bspp(table, force=False):
+    return _add(path = path_bspp,
+                read='paris_ban.csv', 
+                module = 'insalubrite.bspp.read',
+                force = force,
+                drop_features = [],
+                interest_feature = 'Libelle_Motif',
+                interest_feature_origin = '',
+                table = table,
+                date = 'Date_intervention')
+
+###########################
+###    Ravalement      ###
+##########################
+
+
+def add_pv_ravalement(table, force=False):
+    return _add(path = path_output,
+                read='pv_ravalement.csv', 
+                module = 'insalubrite.Sarah.ravalement.pv_ravalement',
+                force = force,
+                drop_features = ['adresse_ban','adresse_ban_score',
+                                 'adresse_ban_type','code_cadastre','codeinsee',
+                                 'codepostal','affaire_id','batiment_id_pv',
+                                 'immeuble_id', 'libelle_pv_ravalement'],
+                interest_feature = 'affectation_facade_pv',
+                interest_feature_origin = 'Nb_pv_par_',
+                table = table,
+                date = 'date_creation_pv')
+    
+
+def add_incitation_ravalement(table, force=False):
+    return _add(path = path_output,
+                read='incitation_ravalement.csv', 
+                module = 'insalubrite.Sarah.ravalement.incitation_ravalement',
+                force = force,
+                drop_features = ['adresse_ban','adresse_ban_score',
+                                 'adresse_ban_type','code_cadastre','codeinsee',
+                                 'codepostal','affaire_id',
+                                 'batiment_id_incitation',
+                                 'libelle_incitation_ravalement',],
+                interest_feature = 'affectation_facade_incitation',
+                interest_feature_origin = 'Nb_incitation_par_',
+                table = table,
+                date = 'date_envoi_incitation_ravalement')
+
+
+def add_arrete_ravalement(table, force=False):
+    return _add(path = path_output,
+                read='arrete_ravalement.csv', 
+                module = 'insalubrite.Sarah.ravalement.arrete_ravalement',
+                force = force,
+                drop_features = ['adresse_ban','adresse_ban_score',
+                                 'adresse_ban_type','code_cadastre','codeinsee',
+                                 'codepostal','affaire_id',
+                                 'libelle_arrete_ravalement','batiment_id_arrete',
+                                 'arrete_ravalement_id'],
+                interest_feature = 'affectation_facade_arrete',
+                interest_feature_origin = 'Nb_arrete_par_',
+                table = table,
+                date = 'date_delai_arrete')
+
+
+
 def add_infos_niveau_adresse(tab, force_all=False,
                              force_bspp=False,
                              force_eau=False,
                              force_saturnisme=False,
                              force_pp=False,
+                             force_ravalement = False,
                              force_iris = False):
+
     tab1 = add_bspp(tab, force_all or force_bspp)
     assert len(tab1) == len(tab)
     tab2 = add_eau(tab1, force_all or force_eau)
@@ -407,10 +489,17 @@ def add_infos_niveau_adresse(tab, force_all=False,
     assert len(tab3) == len(tab)
     tab4 = add_pp(tab3, force_all or force_pp)
     assert len(tab4) == len(tab)
-    tab5 = add_infos_niveau_iris(tab4, force_all or force_iris)
+    #Ravalement
+    tab5 = add_pv_ravalement(tab4, force_all or force_ravalement)
     assert len(tab5) == len(tab)
-    return tab5
-
+    tab6 = add_incitation_ravalement(tab5, force_all or force_ravalement)
+    assert len(tab6) == len(tab)
+    tab7 = add_arrete_ravalement(tab6, force_all or force_ravalement)
+    assert len(tab7) == len(tab)
+    #Niveau iris
+    tab8 = add_infos_niveau_iris(tab7, force_all or force_iris)
+    assert len(tab8) == len(tab)
+    return tab8
 
 
 if __name__ == '__main__':
@@ -422,39 +511,58 @@ if __name__ == '__main__':
     # avant la visite.
     colonnes_en_plus = ['possedecaves','mode_entree_batiment',
                         'hauteur_facade', 'copropriete']
+
     colonnes_iris = ['latitude', 'longitude']
+
+
+    var_sarah_to_keep = ['affaire_id', 'code_cadastre', 'date_creation',
+                            'codeinsee','infractiontype_id', 'titre']
+#    # explications :
+#        'adresse_ban_score', # on ne garde que l'adresse en clair
+#        #'affaire_id', # On garde affaire_id pour des matchs évenuels plus tard (c'est l'index en fait)
+#        'articles', #'infractiontype_id'  on garde par simplicité mais on devrait garder que 'titre',
+#        'bien_id', 'bien_id_provenance', # interne à Sarah   
+
+    
 
     sarah = sarah_data(force_all, cols_from_bien_id=colonnes_en_plus)
     # on retire les 520 affaires sans parcelle cadastrale sur 46 000
     sarah = sarah[sarah['code_cadastre'] != 'inconnu_car_source_adrsimple']
     sarah = sarah[sarah['code_cadastre'].notnull()] # TODO: analyser le biais créée
-    sarah_parcelle = sarah[['affaire_id', 'code_cadastre',
-                            'codeinsee','infractiontype_id', 'titre']]
+    
+    sarah_parcelle = sarah[var_sarah_to_keep]
+    
     sarah_augmentee_parcelle = add_infos_parcelles(sarah_parcelle)
 
     path_output_parcelle = os.path.join(path_output, 'niveau_parcelles.csv')
     sarah_augmentee_parcelle.to_csv(path_output_parcelle, index=False,
                                     encoding="utf8")
 
-    # ici : on a finit avec le niveau parcelle
+    # ici : on a fini avec le niveau parcelle
     # on continue avec le niveau logement mais c'est beaucoup moins bien défini
     # à cause de bien_id et de immeuble qui n'ont pas souvent de adresse_id
     # voir si le signalement ne doit pas être pris en compte pour en avoir plus
 
     sarah_adresse = sarah[sarah['adresse_id'].notnull()]
-    sarah_adresse = sarah_adresse[['adresse_ban_id', 'affaire_id',
-                                   'infractiontype_id', 'titre',
-                                   'code_cadastre', 'date_creation',
-                                   'libelle'] +
-                                   colonnes_en_plus +
-                                   colonnes_iris ]
 
+    sarah_adresse = sarah_adresse[var_sarah_to_keep + 
+                                  ['adresse_ban_id', 'libelle'] + 
+                                  colonnes_en_plus + 
+                                  colonnes_iris 
+                                  ]
+    
+    sarah_adresse.hauteur_facade = sarah_adresse.hauteur_facade.fillna('Inconnu')
+    sarah_adresse.mode_entree_batiment = \
+                            sarah_adresse.mode_entree_batiment.fillna('Inconnu')
+    
     sarah_final = add_infos_niveau_adresse(sarah_adresse,
                              force_all,
                              force_bspp=False,
                              force_eau=False,
                              force_saturnisme=False,
-                             force_pp=False)
+                             force_pp=False,
+                             force_ravalement=False,
+                             force_iris = False)
 
     path_output_adresse = os.path.join(path_output, 'niveau_adresses.csv')
     sarah_final.to_csv(path_output_adresse, index=False,

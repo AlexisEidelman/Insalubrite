@@ -75,30 +75,36 @@ def test_identifiant(tab):
 
 if __name__ == '__main__':
     tab = read_parcelle(2015)
-    logement = [x for x in tab.columns if 'NB_LG' in x]
-    piece = [x for x in tab.columns if 'NB_PIEC' in x]
-    nb_la = [x for x in tab.columns if 'NB_LA' in x]
-    restant = [x for x in tab.columns if x not in logement + piece + nb_la]
 
-#
-## geoloc des parcelles
-#tab_file = os.path.join(path, '00 SRU2014 avec geoloc.xls')
-#geoloc = pd.read_excel(tab_file)
-#var_communes = [x for x in tab.columns if x in geoloc.columns]
-#
-## eau de paris
-#tab_file = os.path.join(path, '10 Eau-de-Paris_APUR 2014.xlsx')
-#eau = pd.read_excel(tab_file)
-#
-## mise en demeure
-#tab_file = os.path.join(path, '30 mises en demeure STH 2014.xls')
-#demeure = pd.read_excel(tab_file)
-## parse la localisaion
-#local = demeure[u'Localisation        ']
-## le premier terme c'est la caractéristique
-## à la fin, après ":, ", c'est les adresses
-#type_loc = local.str.split(' :').str[0]
-#type_loc.value_counts()
-#type_of_location = type_loc.unique().tolist()
-#
-#adresses = local.str.split(':,').str[-1]
+    
+    cols_type_logement = ['NB_LG_GRA', 'NB_LG_LOC', 'NB_LG_NIM', 'NB_LG_PRO',
+                          'NB_LG_IMP', 'NB_LG_VAC', 'NB_LG_DIV', 'NB_LG_UTL',
+                          'NB_LG_LPF']
+    cols_nb_pieces = ['NB_PIEC_1', 'NB_PIEC_2', 'NB_PIEC_3', 'NB_PIE_4P',
+                      'NB_PIANX']
+    cols_taille_logements = ['NB_LG1_9', 'NB_LG1019', 'NB_LG2029',
+                             'NB_LG3039', 'NB_LG4049', 'NB_LG5069',
+                             'NB_LG7089', 'NB_LG_S90']
+    
+    restant = [x for x in tab.columns 
+        if x not in cols_type_logement + cols_nb_pieces + cols_taille_logements
+        ]
+
+
+    assert all(tab[cols_taille_logements].sum(axis=1) == tab['NB_LG'])
+
+    pb_nb_pieces = tab.loc[tab[cols_nb_pieces].sum(axis=1) != tab['NB_LG']]
+    diff = pb_nb_pieces['NB_LG'] - pb_nb_pieces[cols_nb_pieces].sum(axis=1)
+    (diff/pb_nb_pieces['NB_LG']).describe()
+    # beaucoup de 1
+    
+    pb_type = tab[tab[cols_type_logement].sum(axis=1) != tab['NB_LG']]
+    diff = pb_type['NB_LG'] - pb_type[cols_type_logement].sum(axis=1)
+    (pb_type['NB_LG'] - pb_type[cols_type_logement].sum(axis=1)).value_counts()
+    (diff/pb_type['NB_LG']).describe()
+    # beaucoup de 1 mais aussi des type non remplis
+    
+    annee = tab.loc[:,['AN_MIN', 'AN_MAX', 'AN_BATLG', 'AN_BATLOA', 'AN_BATSUR']]
+
+    diff_annee = annee.add(-annee['AN_MIN'], axis=0).mask(annee == 0)
+    une_seule_annnee = annee[annee['AN_MAX'] == annee['AN_MIN']]
