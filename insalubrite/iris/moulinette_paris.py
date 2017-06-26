@@ -18,8 +18,8 @@ from insalubrite.config_insal import path_moulinette, path_output
 path_moulinette_iris = os.path.join(path_moulinette, 'output.csv')
 path_moulinette_paris = os.path.join(path_moulinette, 'iris_paris.csv')
 
-def moulinette_paris():
-    if not os.path.exists(path_moulinette_paris):
+def moulinette_paris(force=False):
+    if not os.path.exists(path_moulinette_paris) or force:
         iris = pd.read_csv(path_moulinette_iris, sep=';', encoding='utf8')
         print(iris.shape)
         
