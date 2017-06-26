@@ -17,7 +17,7 @@ def get_iris(table):
     # on pourrait vérifier que c'est des float aussi
 
     geo = table[table.longitude.notnull() & table.latitude.notnull()]
-    assert all(geo.isnull().sum() == 0)
+    assert all(geo[['longitude', 'latitude']].isnull().sum() == 0)
     geo['geometry'] = geo.apply(lambda x: Point(x.longitude, x.latitude), axis=1)
     geoloc = gpd.GeoDataFrame(geo, geometry='geometry')
     geoloc.crs = {'init' :'epsg:4326'} # WPS84
